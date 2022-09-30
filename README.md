@@ -4,7 +4,7 @@
 Lazar Pavicevic et Jonathan Friedli
 
 ## Contexte
-Ce projet est réalisé dans le cadre du cours de Systèmes Distribués et Répartis (SDR) de la HEIG-VD. Il a pour but de mettre en place un système de gestion de manifestation. Le créateur de la manifestation pourra créer différents job et les bénévoles pourront s'y inscrire.
+Ce projet est réalisé dans le cadre du cours de Systèmes Distribués et Répartis (SDR) de la HEIG-VD. Il a pour but de mettre en place un système de gestion de manifestation via une application client-serveur TCP-IP. Le créateur de la manifestation pourra créer différents jobs et les bénévoles pourront s'y inscrire.
 
 ## Liste des commandes utilisateur
 ```bash
