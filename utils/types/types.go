@@ -20,6 +20,11 @@ type Manifestation struct {
 }
 
 type Config struct {
+	Host string `json:"host,omitempty"`
+	Port int    `json:"port"`
+}
+
+type Entities struct {
 	Users          []User          `json:"users"`
 	Manifestations []Manifestation `json:"manifestations"`
 }
