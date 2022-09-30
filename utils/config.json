@@ -1,0 +1,60 @@
+{
+  "client": {
+    "host": "localhost",
+    "port": 8080
+  },
+  "server": {
+    "port": 8080
+  },
+  "users": [
+    {
+      "username": "JohnDoe",
+      "password": "123456"
+    },
+    {
+      "username": "JaneDoe",
+      "password": "123456"
+    },
+    {
+      "username": "JohnSmith",
+      "password": "123456"
+    },
+    {
+      "username": "JaneSmith",
+      "password": "123456"
+    }
+  ],
+  "manifestations": [
+    {
+      "id": "1",
+      "name": "Event 1",
+      "creator_name": "JohnDoe",
+      "creator_password": "123456",
+      "jobs": [
+        {
+          "id": "1",
+          "name": "Job 1",
+          "nb_volunteers": 5
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "name": "Event 2",
+      "creator_name": "JohnDoe",
+      "creator_password": "123456",
+      "jobs": [
+        {
+          "id": "1",
+          "name": "Job 1",
+          "nb_volunteers": 5
+        },
+        {
+          "id": "2",
+          "name": "Job 2",
+          "nb_volunteers": 10
+        }
+      ]
+    }
+  ]
+}
