@@ -18,3 +18,8 @@ type Manifestation struct {
 	CreatorPassword string `json:"creator_password"`
 	Jobs            []Job  `json:"jobs"`
 }
+
+type Config struct {
+	Users          []User          `json:"users"`
+	Manifestations []Manifestation `json:"manifestations"`
+}
