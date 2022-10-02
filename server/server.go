@@ -10,6 +10,24 @@ import (
 	"github.com/Lazzzer/labo1-sdr/utils"
 )
 
+func handleConnection(connection net.Conn) {
+	for {
+		netData, err := bufio.NewReader(connection).ReadString('\n')
+		if err != nil {
+			fmt.Println(err)
+			break
+		}
+		if strings.TrimSpace(string(netData)) == "quit" {
+			fmt.Println("Closing connection to " + connection.LocalAddr().String())
+			break
+		}
+
+		fmt.Print("From Client "+connection.LocalAddr().String()+" -> ", string(netData))
+		connection.Write([]byte(netData + "\n"))
+	}
+	connection.Close()
+}
+
 func main() {
 	config := utils.GetConfig("config.json")
 	fmt.Println(config)
@@ -22,26 +40,14 @@ func main() {
 	}
 	defer listener.Close()
 
-	connection, err := listener.Accept()
-	if err != nil {
-		fmt.Println(err)
-		return
-	} else {
-		fmt.Println(connection.LocalAddr().String() + " connected")
-	}
-
 	for {
-		netData, err := bufio.NewReader(connection).ReadString('\n')
+		connection, err := listener.Accept()
 		if err != nil {
 			fmt.Println(err)
-		}
-		if strings.TrimSpace(string(netData)) == "quit" {
-			fmt.Println("Closing connection to " + connection.LocalAddr().String())
 			return
+		} else {
+			fmt.Println(connection.LocalAddr().String() + " connected")
 		}
-
-		fmt.Print("From Client "+connection.LocalAddr().String()+" -> ", string(netData))
-		connection.Write([]byte(netData + "\n"))
+		go handleConnection(connection)
 	}
-
 }
