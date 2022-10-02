@@ -29,6 +29,7 @@ func main() {
 		text, _ := reader.ReadString('\n')
 		fmt.Fprintf(connection, text+"\n")
 
+		// TODO: Use a Scanner (?) instead of ReadString to read multiple lines
 		message, _ := bufio.NewReader(connection).ReadString('\n')
 		fmt.Print("From Server -> " + message)
 
