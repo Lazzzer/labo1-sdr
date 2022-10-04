@@ -7,15 +7,15 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Lazzzer/labo1-sdr/utils"
 )
 
 func showAllManifestations(mMap *sync.Map) string {
-	fmt.Println("Showing all manifestations")
 	response := "Manifestations:\n"
 	mMap.Range(func(key, value interface{}) bool {
-		fmt.Println(value)
+		// fmt.Println(value)
 		response = response + value.(utils.Manifestation).Name + "\n"
 		return true
 	})
@@ -57,7 +57,7 @@ func handleConnection(connection net.Conn, uMap *sync.Map, mMap *sync.Map) {
 
 		response, end := processCommand(strings.TrimSpace(string(netData)), mMap)
 
-		fmt.Print("From Client "+connection.LocalAddr().String()+" -> ", string(netData))
+		fmt.Print(connection.RemoteAddr().String()+" at "+time.Now().Format("15:04:05")+" -> ", string(netData))
 		connection.Write([]byte(response + "\n"))
 
 		if end {
@@ -94,7 +94,7 @@ func main() {
 			fmt.Println(err)
 			return
 		} else {
-			fmt.Println(connection.LocalAddr().String() + " connected")
+			fmt.Println(connection.RemoteAddr().String() + " connected")
 		}
 		go handleConnection(connection, &userMap, &manifMap)
 	}
