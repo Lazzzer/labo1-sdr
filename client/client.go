@@ -29,9 +29,18 @@ func main() {
 		text, _ := reader.ReadString('\n')
 		fmt.Fprintf(connection, text+"\n")
 
-		// TODO: Use a Scanner (?) instead of ReadString to read multiple lines
-		message, _ := bufio.NewReader(connection).ReadString('\n')
-		fmt.Print("From Server -> " + message)
+		var lines []string
+		scanner := bufio.NewScanner(connection)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if len(line) == 0 {
+				break
+			}
+			lines = append(lines, line)
+		}
+		for _, line := range lines {
+			fmt.Println(line)
+		}
 
 		if strings.TrimSpace(string(text)) == "quit" {
 			fmt.Println("Closing connection")

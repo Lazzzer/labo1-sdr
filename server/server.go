@@ -29,7 +29,7 @@ func handleConnection(connection net.Conn, uMap *sync.Map, mMap *sync.Map) {
 			fmt.Println("Showing all manifestations")
 			mMap.Range(func(key, value interface{}) bool {
 				fmt.Println(value)
-				response = value.(utils.Manifestation).Name + "\n"
+				response = response + value.(utils.Manifestation).Name + "\n"
 				return true
 			})
 		}
