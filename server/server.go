@@ -11,6 +11,42 @@ import (
 	"github.com/Lazzzer/labo1-sdr/utils"
 )
 
+func showAllManifestations(mMap *sync.Map) string {
+	fmt.Println("Showing all manifestations")
+	response := "Manifestations:\n"
+	mMap.Range(func(key, value interface{}) bool {
+		fmt.Println(value)
+		response = response + value.(utils.Manifestation).Name + "\n"
+		return true
+	})
+
+	return response
+}
+
+// TODO : Add help
+func showHelp() string {
+	return "help"
+}
+
+func processCommand(command string, m *sync.Map) (string, bool) {
+	var response string
+	end := false
+	switch command {
+	case "quit":
+		fmt.Println("Closing connection")
+		response = "Good bye!"
+		end = true
+	case "help":
+		response = showHelp()
+	case "showAll":
+		response = showAllManifestations(m)
+	default:
+		response = "Unknown command"
+	}
+
+	return response + "\n", end
+}
+
 func handleConnection(connection net.Conn, uMap *sync.Map, mMap *sync.Map) {
 	for {
 		netData, err := bufio.NewReader(connection).ReadString('\n')
@@ -19,23 +55,14 @@ func handleConnection(connection net.Conn, uMap *sync.Map, mMap *sync.Map) {
 			break
 		}
 
-		var response string
-
-		if strings.TrimSpace(string(netData)) == "quit" {
-			fmt.Println("Closing connection to " + connection.LocalAddr().String())
-			break
-		}
-		if strings.TrimSpace(string(netData)) == "showAll" {
-			fmt.Println("Showing all manifestations")
-			mMap.Range(func(key, value interface{}) bool {
-				fmt.Println(value)
-				response = response + value.(utils.Manifestation).Name + "\n"
-				return true
-			})
-		}
+		response, end := processCommand(strings.TrimSpace(string(netData)), mMap)
 
 		fmt.Print("From Client "+connection.LocalAddr().String()+" -> ", string(netData))
 		connection.Write([]byte(response + "\n"))
+
+		if end {
+			break
+		}
 	}
 	connection.Close()
 }

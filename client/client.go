@@ -13,7 +13,6 @@ import (
 
 func main() {
 	config := utils.GetConfig("config.json")
-	fmt.Println(config)
 
 	connection, err := net.Dial("tcp", config.Host+":"+strconv.Itoa(config.Port))
 
