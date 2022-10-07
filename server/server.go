@@ -51,17 +51,18 @@ func createEvent() string {
 
 func quit() (string, bool) {
 	fmt.Println("Fermeture de la connexion")
-	return "Au revoir!", true
+	return "Goodbye!", true
 }
 
 func processCommand(command string) (string, bool) {
 	//var allCommands = []string{"help", "create", "close", "register", "showAll", "showJobs", "jobRepartition", "quit"}
 	var response string
 	end := false
-	var splitted = strings.Split(command, " ")
-	fmt.Println(splitted)
+	//splited := strings.Fields(command)
+	fmt.Println("splited")
 	switch command {
 	case "quit":
+		fmt.Println("splited")
 		response, end = quit()
 	case "help":
 		response = showHelp()
