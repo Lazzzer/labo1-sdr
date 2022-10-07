@@ -14,14 +14,14 @@ help
 # Quitter le programme
 quit
 
-# Créer une manifestation
-create <name> <username> <password> <job1> <nbVolunteer1> [<job2> <nbVolunteer2> ...]
+# Créer une manifestation (Demande le mot de passe de l'utilisateur)
+create <name> <username> <job1> <nbVolunteer1> [<job2> <nbVolunteer2> ...]
 
-# Clore une manifestation
-close <idManifestation> <username> <password>
+# Clore une manifestation (Demande le mot de passe de l'utilisateur)
+close <idManifestation> <username>
 
-# S'inscrire à une manifestation
-register <idManifestation> <idJob> <username> <password> 
+# S'inscrire à une manifestation (Demande le mot de passe de l'utilisateur)
+register <idManifestation> <idJob> <username>
 
 # Afficher toutes les manifestations
 showAll
