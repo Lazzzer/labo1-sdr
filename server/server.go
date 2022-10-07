@@ -6,19 +6,26 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Lazzzer/labo1-sdr/utils"
 )
 
-func showAllManifestations(mMap *sync.Map) string {
+// Channels
+var mChan = make(chan []utils.Manifestation)
+var uChan = make(chan []utils.User)
+
+func showAllManifestations() string {
+	manifestations := <-mChan
 	response := "Manifestations:\n"
-	mMap.Range(func(key, value interface{}) bool {
-		// fmt.Println(value)
-		response = response + value.(utils.Manifestation).Name + "\n"
-		return true
-	})
+
+	go func() {
+		mChan <- manifestations
+	}()
+
+	for _, manifestation := range manifestations {
+		response += manifestation.Name + "\n"
+	}
 
 	return response
 }
@@ -44,7 +51,7 @@ func quit() (string, bool) {
 	return "Au revoir!", true
 }
 
-func processCommand(command string, m *sync.Map) (string, bool) {
+func processCommand(command string) (string, bool) {
 	var response string
 	end := false
 	switch command {
@@ -53,7 +60,7 @@ func processCommand(command string, m *sync.Map) (string, bool) {
 	case "help":
 		response = showHelp()
 	case "showAll":
-		response = showAllManifestations(m)
+		response = showAllManifestations()
 	default:
 		response = "Unknown command"
 	}
@@ -61,7 +68,7 @@ func processCommand(command string, m *sync.Map) (string, bool) {
 	return response + "\n", end
 }
 
-func handleConnection(connection net.Conn, uMap *sync.Map, mMap *sync.Map) {
+func handleConn(connection net.Conn) {
 	for {
 		netData, err := bufio.NewReader(connection).ReadString('\n')
 		if err != nil {
@@ -69,7 +76,7 @@ func handleConnection(connection net.Conn, uMap *sync.Map, mMap *sync.Map) {
 			break
 		}
 
-		response, end := processCommand(strings.TrimSpace(string(netData)), mMap)
+		response, end := processCommand(strings.TrimSpace(string(netData)))
 
 		fmt.Print(connection.RemoteAddr().String()+" at "+time.Now().Format("15:04:05")+" -> ", string(netData))
 		connection.Write([]byte(response + "\n"))
@@ -83,24 +90,21 @@ func handleConnection(connection net.Conn, uMap *sync.Map, mMap *sync.Map) {
 
 func main() {
 	config := utils.GetConfig("config.json")
-	users, manifestations := utils.GetEntities("entities.json")
-
-	userMap := sync.Map{}
-	manifMap := sync.Map{}
-
-	for _, user := range users {
-		userMap.Store(user.Username, user) // TODO: Add id for a better key?
-	}
-
-	for _, manifestation := range manifestations {
-		manifMap.Store(manifestation.Id, manifestation)
-	}
+	_, manifestations := utils.GetEntities("entities.json")
 
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(config.Port))
 	if err != nil {
 		panic(err)
 	}
 	defer listener.Close()
+
+	go func() {
+		mChan <- manifestations
+	}()
+
+	// go func() {
+	// 	uChan <- users;
+	// }
 
 	for {
 		connection, err := listener.Accept()
@@ -110,6 +114,6 @@ func main() {
 		} else {
 			fmt.Println(connection.RemoteAddr().String() + " connected")
 		}
-		go handleConnection(connection, &userMap, &manifMap)
+		go handleConn(connection)
 	}
 }
