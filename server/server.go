@@ -25,7 +25,23 @@ func showAllManifestations(mMap *sync.Map) string {
 
 // TODO : Add help
 func showHelp() string {
-	return "help"
+	var help = "---------------------------------------------------------\n"
+	help += "# Description of the command:\nHow to use the command\n \n"
+	help += "# Display all commands:\nhelp\n \n"
+	help += "# Create an event (will ask your password):\ncreate <eventName> <username> <job1> <nbVolunteer1> [<job2> <nbVolunteer2> ...]\n \n"
+	help += "# Close an event (will ask your password):\nclose <idEvent> <username>\n \n"
+	help += "# Register to an event (will ask your password):\nregister <idEvent> <idJob> <username>\n \n"
+	help += "# Show all events:\nshowAll\n \n"
+	help += "# Show all jobs from an event:\nshowJobs <idEvent>\n \n"
+	help += "# Show all volunteers from an event:\njobRepartition <idEvent>\n \n"
+	help += "# Quit the program:\nquit\n"
+	help += "---------------------------------------------------------\n"
+	return help
+}
+
+func quit() (string, bool) {
+	fmt.Println("Fermeture de la connexion")
+	return "Au revoir!", true
 }
 
 func processCommand(command string, m *sync.Map) (string, bool) {
@@ -33,9 +49,7 @@ func processCommand(command string, m *sync.Map) (string, bool) {
 	end := false
 	switch command {
 	case "quit":
-		fmt.Println("Closing connection")
-		response = "Good bye!"
-		end = true
+		response, end = quit()
 	case "help":
 		response = showHelp()
 	case "showAll":
