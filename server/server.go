@@ -30,7 +30,6 @@ func showAllManifestations() string {
 	return response
 }
 
-// TODO : Add help
 func showHelp() string {
 	var help = "---------------------------------------------------------\n"
 	help += "# Description of the command:\nHow to use the command\n \n"
@@ -46,19 +45,28 @@ func showHelp() string {
 	return help
 }
 
+func createEvent() string {
+	return "create"
+}
+
 func quit() (string, bool) {
 	fmt.Println("Fermeture de la connexion")
 	return "Au revoir!", true
 }
 
 func processCommand(command string) (string, bool) {
+	//var allCommands = []string{"help", "create", "close", "register", "showAll", "showJobs", "jobRepartition", "quit"}
 	var response string
 	end := false
+	var splitted = strings.Split(command, " ")
+	fmt.Println(splitted)
 	switch command {
 	case "quit":
 		response, end = quit()
 	case "help":
 		response = showHelp()
+	case "createEvent":
+		response = createEvent()
 	case "showAll":
 		response = showAllManifestations()
 	default:
