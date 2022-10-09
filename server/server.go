@@ -48,21 +48,14 @@ func createEvent() string {
 	return "create"
 }
 
-func quit() (string, bool) {
-	fmt.Println("Fermeture de la connexion")
-	return "Goodbye!", true
-}
-
 func processCommand(command string) (string, bool) {
 	//var allCommands = []string{"help", "create", "close", "register", "showAll", "showJobs", "jobRepartition", "quit"}
 	var response string
 	end := false
 	//splited := strings.Fields(command)
-	fmt.Println("splited")
 	switch command {
 	case "quit":
-		fmt.Println("splited")
-		response, end = quit()
+		end = true
 	case "help":
 		response = showHelp()
 	case "createEvent":
@@ -70,10 +63,10 @@ func processCommand(command string) (string, bool) {
 	case "showAll":
 		response = showAllManifestations()
 	default:
-		response = "Unknown command"
+		response = "Unknown command\n"
 	}
 
-	return response + "\n", end
+	return response, end
 }
 
 func handleConn(conn net.Conn) {
@@ -88,11 +81,13 @@ func handleConn(conn net.Conn) {
 		response, end := processCommand(strings.TrimSpace(string(netData)))
 
 		fmt.Print(conn.RemoteAddr().String()+" at "+time.Now().Format("15:04:05")+" -> ", string(netData))
-		conn.Write([]byte(response + "\n"))
 
 		if end {
+			fmt.Println(conn.RemoteAddr().String() + " disconnected")
 			break
 		}
+
+		conn.Write([]byte(response))
 	}
 	conn.Close()
 }
@@ -112,13 +107,13 @@ func main() {
 	}()
 
 	for {
-		connection, err := listener.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
 			fmt.Println(err)
 			return
 		} else {
-			fmt.Println(connection.RemoteAddr().String() + " connected")
+			fmt.Println(conn.RemoteAddr().String() + " connected")
 		}
-		go handleConn(connection)
+		go handleConn(conn)
 	}
 }

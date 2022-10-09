@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strconv"
@@ -10,6 +12,9 @@ import (
 
 	"github.com/Lazzzer/labo1-sdr/utils"
 )
+
+var ErrorEmptyInput = errors.New("empty input")
+var ErrorInvalidInput = errors.New("invalid input")
 
 func askPassword() string {
 	var password string
@@ -20,23 +25,22 @@ func askPassword() string {
 }
 
 func processInput(input string) (string, error) {
-	args := strings.Fields(input)
-
-	if len(args) == 0 {
-		return "", fmt.Errorf("invalid command")
+	if len(input) == 0 {
+		return "", ErrorEmptyInput
 	}
+
+	args := strings.Fields(input)
 	processedInput := strings.Join(args, " ")
 
 	for _, command := range utils.COMMANDS {
 		if args[0] == command.Name && len(args) >= command.MinArgs+1 {
 			if command.Auth {
-				password := askPassword()
-				processedInput += " " + password
+				processedInput += " " + askPassword()
 			}
 			return processedInput, nil
 		}
 	}
-	return processedInput, fmt.Errorf("invalid command")
+	return processedInput, ErrorInvalidInput
 }
 
 func main() {
@@ -52,35 +56,26 @@ func main() {
 
 	defer conn.Close()
 
-	for {
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print(">> ")
-		input, _ := reader.ReadString('\n')
+	go func() {
+		io.Copy(os.Stdout, conn) // Lecture des réponses du serveur
+	}()
 
-		newInput, err := processInput(input)
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		input, _ := reader.ReadString('\n')
+		processedInput, err := processInput(input)
 
 		if err != nil {
-			fmt.Println("Error: Invalid command. Type 'help' for a list of commands.")
+			if err == ErrorInvalidInput {
+				fmt.Println("Error: Invalid command. Type 'help' for a list of commands.")
+			}
 			continue
 		}
 
-		fmt.Fprintf(conn, newInput+"\n")
+		io.Copy(conn, strings.NewReader(processedInput+"\n")) // Passage de l'input traité au serveur
 
-		var lines []string
-		scanner := bufio.NewScanner(conn)
-		for scanner.Scan() {
-			line := scanner.Text()
-			if len(line) == 0 {
-				break
-			}
-			lines = append(lines, line)
-		}
-		for _, line := range lines {
-			fmt.Println(line)
-		}
-
-		if strings.TrimSpace(string(newInput)) == "quit" {
-			fmt.Println("Closing connection")
+		if processedInput == utils.QUIT.Name {
+			fmt.Println("Goodbye!")
 			break
 		}
 	}
