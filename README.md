@@ -21,7 +21,7 @@ create <name> <username> <job1> <nbVolunteer1> [<job2> <nbVolunteer2> ...]
 close <idEvent> <username>
 
 # S'inscrire à une manifestation (Demande le mot de passe de l'utilisateur)
-register <idEvent> <idJob> <username>
+register <idEvent> <idJob> <username> [[<password>]]
 
 # Afficher toutes les manifestations
 showAll

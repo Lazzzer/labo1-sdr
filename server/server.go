@@ -12,8 +12,11 @@ import (
 	"github.com/Lazzzer/labo1-sdr/utils"
 )
 
+var invalidNbArgsMessage = "Error: Invalid number of arguments. Type 'help' for more information.\n"
+
 // Channels
 var eChan = make(chan []utils.Event)
+var uChan = make(chan []utils.User)
 
 // TODO: Présentation clean
 func showEvents() string {
@@ -50,6 +53,48 @@ func createEvent() string {
 	return "create"
 }
 
+func verifyUser(username, password string) (utils.User, bool) {
+	users := <-uChan
+
+	var returnedUser utils.User
+	ok := false
+
+	for _, user := range users {
+		if user.Username == username && user.Password == password {
+			returnedUser = user
+			ok = true
+			break
+		}
+	}
+
+	go func() {
+		uChan <- users
+	}()
+
+	return returnedUser, ok
+}
+
+func register(args []string) string {
+
+	if len(args) != utils.REGISTER.MinArgs {
+		return invalidNbArgsMessage
+	}
+
+	// idEvent := args[0]
+	// idJob := args[1]
+	username := args[2]
+	password := args[3]
+
+	user, ok := verifyUser(username, password)
+
+	if !ok {
+		return "Error: Access denied.\n"
+	}
+
+	// TODO : Ajouter l'utilisateur à l'événement
+	return "You're in " + user.Username + "! \n"
+}
+
 func processCommand(command string) (string, bool) {
 	args := strings.Fields(command)
 
@@ -59,6 +104,7 @@ func processCommand(command string) (string, bool) {
 
 	var response string
 	name := args[0]
+	args = args[1:]
 	end := false
 
 	switch name {
@@ -69,7 +115,7 @@ func processCommand(command string) (string, bool) {
 	case utils.CLOSE.Name:
 		response = "TODO"
 	case utils.REGISTER.Name:
-		response = "TODO"
+		response = register(args)
 	case utils.SHOW_ALL.Name:
 		response = showEvents()
 	case utils.SHOW_JOBS.Name:
@@ -110,13 +156,17 @@ func handleConn(conn net.Conn) {
 
 func main() {
 	config := utils.GetConfig("config.json")
-	_, events := utils.GetEntities("entities.json")
+	users, events := utils.GetEntities("entities.json")
 
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(config.Port))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer listener.Close()
+
+	go func() {
+		uChan <- users
+	}()
 
 	go func() {
 		eChan <- events

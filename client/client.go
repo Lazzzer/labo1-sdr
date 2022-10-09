@@ -40,7 +40,7 @@ func processInput(input string) (string, error) {
 	processedInput := strings.Join(args, " ")
 
 	for _, command := range utils.COMMANDS {
-		if args[0] == command.Name && len(args) >= command.MinArgs+1 {
+		if args[0] == command.Name {
 			if command.Auth {
 				processedInput += " " + askPassword()
 			}
