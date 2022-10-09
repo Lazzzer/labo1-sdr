@@ -13,7 +13,6 @@ import (
 
 // Channels
 var mChan = make(chan []utils.Manifestation)
-var uChan = make(chan []utils.User)
 
 func showAllManifestations() string {
 	manifestations := <-mChan
@@ -77,9 +76,10 @@ func processCommand(command string) (string, bool) {
 	return response + "\n", end
 }
 
-func handleConn(connection net.Conn) {
+func handleConn(conn net.Conn) {
 	for {
-		netData, err := bufio.NewReader(connection).ReadString('\n')
+		netData, err := bufio.NewReader(conn).ReadString('\n')
+
 		if err != nil {
 			fmt.Println(err)
 			break
@@ -87,14 +87,14 @@ func handleConn(connection net.Conn) {
 
 		response, end := processCommand(strings.TrimSpace(string(netData)))
 
-		fmt.Print(connection.RemoteAddr().String()+" at "+time.Now().Format("15:04:05")+" -> ", string(netData))
-		connection.Write([]byte(response + "\n"))
+		fmt.Print(conn.RemoteAddr().String()+" at "+time.Now().Format("15:04:05")+" -> ", string(netData))
+		conn.Write([]byte(response + "\n"))
 
 		if end {
 			break
 		}
 	}
-	connection.Close()
+	conn.Close()
 }
 
 func main() {
@@ -110,10 +110,6 @@ func main() {
 	go func() {
 		mChan <- manifestations
 	}()
-
-	// go func() {
-	// 	uChan <- users;
-	// }
 
 	for {
 		connection, err := listener.Accept()

@@ -1,5 +1,16 @@
 package types
 
+type Config struct {
+	Host string `json:"host,omitempty"`
+	Port int    `json:"port"`
+}
+
+type Command struct {
+	Name    string `json:"name"`
+	Auth    bool   `json:"auth"`
+	MinArgs int    `json:"minArgs"`
+}
+
 type User struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -17,11 +28,6 @@ type Manifestation struct {
 	CreatorName     string `json:"creator_name"`
 	CreatorPassword string `json:"creator_password"`
 	Jobs            []Job  `json:"jobs"`
-}
-
-type Config struct {
-	Host string `json:"host,omitempty"`
-	Port int    `json:"port"`
 }
 
 type Entities struct {
