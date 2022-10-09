@@ -20,7 +20,12 @@ func askPassword() string {
 	var password string
 	fmt.Print("Password: ")
 	// TODO: Lecture de la saisie sans afficher les caractères
-	fmt.Scanln(&password)
+	// fmt.Scanln(&password)
+	// source: https://stackoverflow.com/a/30363853/10093604 lol
+	fmt.Print("\033[8m")
+	fmt.Scan(&password)
+	fmt.Print("\033[28m")
+
 	return password
 }
 
