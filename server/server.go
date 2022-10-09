@@ -15,6 +15,7 @@ import (
 // Channels
 var eChan = make(chan []utils.Event)
 
+// TODO: Présentation clean
 func showEvents() string {
 	events := <-eChan
 	response := "Events:\n"
@@ -50,19 +51,33 @@ func createEvent() string {
 }
 
 func processCommand(command string) (string, bool) {
-	//var allCommands = []string{"help", "create", "close", "register", "showAll", "showJobs", "jobRepartition", "quit"}
+	args := strings.Fields(command)
+
+	if len(args) == 0 {
+		return "Empty command", false
+	}
+
 	var response string
+	name := args[0]
 	end := false
-	//splited := strings.Fields(command)
-	switch command {
-	case "quit":
-		end = true
-	case "help":
+
+	switch name {
+	case utils.HELP.Name:
 		response = showHelp()
-	case "createEvent":
+	case utils.CREATE.Name:
 		response = createEvent()
-	case "showAll":
+	case utils.CLOSE.Name:
+		response = "TODO"
+	case utils.REGISTER.Name:
+		response = "TODO"
+	case utils.SHOW_ALL.Name:
 		response = showEvents()
+	case utils.SHOW_JOBS.Name:
+		response = "TODO"
+	case utils.JOBS_REPARTITION.Name:
+		response = "TODO"
+	case utils.QUIT.Name:
+		end = true
 	default:
 		response = "Error: Invalid command. Type 'help' for a list of commands.\n"
 	}
