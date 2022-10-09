@@ -20,6 +20,7 @@ type Job struct {
 	Id           string `json:"id"`
 	Name         string `json:"name"`
 	NbVolunteers int    `json:"nb_volunteers"`
+	Volunteers   []User `json:"volunteers"`
 }
 
 type Event struct {

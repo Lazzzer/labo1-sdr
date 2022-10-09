@@ -27,7 +27,17 @@
         {
           "id": "1",
           "name": "Job 1",
-          "nb_volunteers": 5
+          "nb_volunteers": 2,
+          "volunteers": [
+            {
+              "username": "JohnDoe",
+              "password": "123456"
+            },
+            {
+              "username": "JaneDoe",
+              "password": "123456"
+            }
+          ]
         }
       ]
     },
@@ -40,12 +50,19 @@
         {
           "id": "1",
           "name": "Job 1",
-          "nb_volunteers": 5
+          "nb_volunteers": 5,
+          "volunteers": [
+            {
+              "username": "JohnSmith",
+              "password": "123456"
+            }
+          ]
         },
         {
           "id": "2",
           "name": "Job 2",
-          "nb_volunteers": 10
+          "nb_volunteers": 10,
+          "volunteers": []
         }
       ]
     }

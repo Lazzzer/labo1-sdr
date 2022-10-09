@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"strconv"
@@ -55,7 +56,7 @@ func main() {
 	conn, err := net.Dial("tcp", config.Host+":"+strconv.Itoa(config.Port))
 
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	} else {
 		fmt.Println("Welcome! Please enter a command.\nType 'help' for a list of commands.")
 	}

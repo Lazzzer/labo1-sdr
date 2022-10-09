@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -63,24 +64,24 @@ func processCommand(command string) (string, bool) {
 	case "showAll":
 		response = showEvents()
 	default:
-		response = "Unknown command\n"
+		response = "Error: Invalid command. Type 'help' for a list of commands.\n"
 	}
 
 	return response, end
 }
 
 func handleConn(conn net.Conn) {
+	reader := bufio.NewReader(conn)
 	for {
-		netData, err := bufio.NewReader(conn).ReadString('\n')
+		input, err := reader.ReadString('\n')
 
 		if err != nil {
 			fmt.Println(err)
 			break
 		}
 
-		response, end := processCommand(strings.TrimSpace(string(netData)))
-
-		fmt.Print(conn.RemoteAddr().String()+" at "+time.Now().Format("15:04:05")+" -> ", string(netData))
+		response, end := processCommand(strings.TrimSpace(string(input)))
+		fmt.Print(conn.RemoteAddr().String()+" at "+time.Now().Format("15:04:05")+" -> ", string(input))
 
 		if end {
 			fmt.Println(conn.RemoteAddr().String() + " disconnected at " + time.Now().Format("15:04:05"))
@@ -98,7 +99,7 @@ func main() {
 
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(config.Port))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer listener.Close()
 
