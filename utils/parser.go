@@ -12,12 +12,12 @@ import (
 // Aliases
 type Config = types.Config
 type Entities = types.Entities
-type Manifestation = types.Manifestation
+type Event = types.Event
 type User = types.User
 
-func GetEntities(path string) ([]User, []Manifestation) {
+func GetEntities(path string) ([]User, []Event) {
 	entities := parse[Entities](path)
-	return entities.Users, entities.Manifestations
+	return entities.Users, entities.Events
 }
 
 func GetConfig(path string) Config {

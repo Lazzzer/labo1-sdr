@@ -25,11 +25,12 @@ func askPassword() string {
 }
 
 func processInput(input string) (string, error) {
-	if len(input) == 0 {
+	args := strings.Fields(input)
+
+	if len(args) == 0 {
 		return "", ErrorEmptyInput
 	}
 
-	args := strings.Fields(input)
 	processedInput := strings.Join(args, " ")
 
 	for _, command := range utils.COMMANDS {

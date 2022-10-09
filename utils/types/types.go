@@ -22,7 +22,7 @@ type Job struct {
 	NbVolunteers int    `json:"nb_volunteers"`
 }
 
-type Manifestation struct {
+type Event struct {
 	Id              string `json:"id"`
 	Name            string `json:"name"`
 	CreatorName     string `json:"creator_name"`
@@ -31,6 +31,6 @@ type Manifestation struct {
 }
 
 type Entities struct {
-	Users          []User          `json:"users"`
-	Manifestations []Manifestation `json:"manifestations"`
+	Users  []User  `json:"users"`
+	Events []Event `json:"events"`
 }

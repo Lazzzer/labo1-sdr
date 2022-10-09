@@ -17,7 +17,7 @@
       "password": "123456"
     }
   ],
-  "manifestations": [
+  "events": [
     {
       "id": "1",
       "name": "Event 1",

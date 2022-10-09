@@ -18,19 +18,19 @@ help
 create <name> <username> <job1> <nbVolunteer1> [<job2> <nbVolunteer2> ...]
 
 # Clore une manifestation (Demande le mot de passe de l'utilisateur)
-close <idManifestation> <username>
+close <idEvent> <username>
 
 # S'inscrire à une manifestation (Demande le mot de passe de l'utilisateur)
-register <idManifestation> <idJob> <username>
+register <idEvent> <idJob> <username>
 
 # Afficher toutes les manifestations
 showAll
 
 # Afficher les job d'une certaine manifestation
-showJobs <idManifestation>
+showJobs <idEvent>
 
 # Afficher les bénévoles d'une certaine manifestation
-jobRepartition <idManifestation>
+jobRepartition <idEvent>
 
 # Quitter le programme
 quit

@@ -12,18 +12,18 @@ import (
 )
 
 // Channels
-var mChan = make(chan []utils.Manifestation)
+var eChan = make(chan []utils.Event)
 
-func showAllManifestations() string {
-	manifestations := <-mChan
-	response := "Manifestations:\n"
+func showEvents() string {
+	events := <-eChan
+	response := "Events:\n"
 
 	go func() {
-		mChan <- manifestations
+		eChan <- events
 	}()
 
-	for _, manifestation := range manifestations {
-		response += manifestation.Name + "\n"
+	for _, event := range events {
+		response += event.Name + "\n"
 	}
 
 	return response
@@ -61,7 +61,7 @@ func processCommand(command string) (string, bool) {
 	case "createEvent":
 		response = createEvent()
 	case "showAll":
-		response = showAllManifestations()
+		response = showEvents()
 	default:
 		response = "Unknown command\n"
 	}
@@ -83,7 +83,7 @@ func handleConn(conn net.Conn) {
 		fmt.Print(conn.RemoteAddr().String()+" at "+time.Now().Format("15:04:05")+" -> ", string(netData))
 
 		if end {
-			fmt.Println(conn.RemoteAddr().String() + " disconnected")
+			fmt.Println(conn.RemoteAddr().String() + " disconnected at " + time.Now().Format("15:04:05"))
 			break
 		}
 
@@ -94,7 +94,7 @@ func handleConn(conn net.Conn) {
 
 func main() {
 	config := utils.GetConfig("config.json")
-	_, manifestations := utils.GetEntities("entities.json")
+	_, events := utils.GetEntities("entities.json")
 
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(config.Port))
 	if err != nil {
@@ -103,7 +103,7 @@ func main() {
 	defer listener.Close()
 
 	go func() {
-		mChan <- manifestations
+		eChan <- events
 	}()
 
 	for {
@@ -112,7 +112,7 @@ func main() {
 			fmt.Println(err)
 			return
 		} else {
-			fmt.Println(conn.RemoteAddr().String() + " connected")
+			fmt.Println(conn.RemoteAddr().String() + " connected at " + time.Now().Format("15:04:05"))
 		}
 		go handleConn(conn)
 	}
