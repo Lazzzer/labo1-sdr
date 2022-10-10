@@ -13,11 +13,12 @@ import (
 type Config = types.Config
 type Entities = types.Entities
 type Event = types.Event
+type Job = types.Job
 type User = types.User
 
-func GetEntities(path string) ([]User, []Event) {
+func GetEntities(path string) ([]User, []Event, []Job) {
 	entities := parse[Entities](path)
-	return entities.Users, entities.Events
+	return entities.Users, entities.Events, entities.Jobs
 }
 
 func GetConfig(path string) Config {

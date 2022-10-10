@@ -1,69 +1,70 @@
 {
   "users": [
     {
-      "username": "JohnDoe",
-      "password": "123456"
+      "id": 1,
+      "username": "johndoe",
+      "password": "1234"
     },
     {
-      "username": "JaneDoe",
-      "password": "123456"
+      "id": 2,
+      "username": "janedoe",
+      "password": "1234"
     },
     {
-      "username": "JohnSmith",
-      "password": "123456"
+      "id": 3,
+      "username": "johnsmith",
+      "password": "1234"
     },
     {
-      "username": "JaneSmith",
-      "password": "123456"
+      "id": 4,
+      "username": "janesmith",
+      "password": "1234"
+    }
+  ],
+  "jobs": [
+    {
+      "id": 1,
+      "name": "Job 1",
+      "creator_id": 1,
+      "nb_volunteers": 2,
+      "volunteer_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Job 2",
+      "creator_id": 1,
+      "nb_volunteers": 5,
+      "volunteer_ids": [
+        4
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Job 3",
+      "creator_id": 4,
+      "nb_volunteers": 10,
+      "volunteer_ids": []
     }
   ],
   "events": [
     {
-      "id": "1",
+      "id": 1,
       "name": "Event 1",
-      "creator_name": "JohnDoe",
-      "creator_password": "123456",
-      "jobs": [
-        {
-          "id": "1",
-          "name": "Job 1",
-          "nb_volunteers": 2,
-          "volunteers": [
-            {
-              "username": "JohnDoe",
-              "password": "123456"
-            },
-            {
-              "username": "JaneDoe",
-              "password": "123456"
-            }
-          ]
-        }
+      "creator_id": 1,
+      "job_ids": [
+        1,
+        2
       ]
     },
     {
-      "id": "2",
+      "id": 2,
       "name": "Event 2",
-      "creator_name": "JohnDoe",
-      "creator_password": "123456",
-      "jobs": [
-        {
-          "id": "1",
-          "name": "Job 1",
-          "nb_volunteers": 5,
-          "volunteers": [
-            {
-              "username": "JohnSmith",
-              "password": "123456"
-            }
-          ]
-        },
-        {
-          "id": "2",
-          "name": "Job 2",
-          "nb_volunteers": 10,
-          "volunteers": []
-        }
+      "creator_id": 4,
+      "job_ids": [
+        3
       ]
     }
   ]

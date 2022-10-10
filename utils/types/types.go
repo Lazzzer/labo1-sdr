@@ -12,26 +12,28 @@ type Command struct {
 }
 
 type User struct {
+	Id       int    `json:"id"`
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
 type Job struct {
-	Id           string `json:"id"`
+	Id           int    `json:"id"`
 	Name         string `json:"name"`
+	CreatorId    int    `json:"creator_id"`
 	NbVolunteers int    `json:"nb_volunteers"`
-	Volunteers   []User `json:"volunteers"`
+	VolunteerIds []int  `json:"volunteer_ids"`
 }
 
 type Event struct {
-	Id              string `json:"id"`
-	Name            string `json:"name"`
-	CreatorName     string `json:"creator_name"`
-	CreatorPassword string `json:"creator_password"`
-	Jobs            []Job  `json:"jobs"`
+	Id        int    `json:"id"`
+	Name      string `json:"name"`
+	CreatorId int    `json:"creator_id"`
+	JobIds    []int  `json:"job_ids"`
 }
 
 type Entities struct {
 	Users  []User  `json:"users"`
 	Events []Event `json:"events"`
+	Jobs   []Job   `json:"jobs"`
 }

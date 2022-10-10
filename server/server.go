@@ -16,6 +16,7 @@ var invalidNbArgsMessage = "Error: Invalid number of arguments. Type 'help' for 
 
 // Channels
 var eChan = make(chan []utils.Event)
+var jChan = make(chan []utils.Job)
 var uChan = make(chan []utils.User)
 
 // TODO: Présentation clean
@@ -156,7 +157,11 @@ func handleConn(conn net.Conn) {
 
 func main() {
 	config := utils.GetConfig("config.json")
-	users, events := utils.GetEntities("entities.json")
+	users, events, jobs := utils.GetEntities("entities.json")
+
+	fmt.Println(users)
+	fmt.Println(events)
+	fmt.Println(jobs)
 
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(config.Port))
 	if err != nil {
