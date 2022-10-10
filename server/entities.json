@@ -26,6 +26,7 @@
       "id": 1,
       "name": "Job 1",
       "creator_id": 1,
+      "event_id": 1,
       "nb_volunteers": 2,
       "volunteer_ids": [
         2,
@@ -36,6 +37,7 @@
       "id": 2,
       "name": "Job 2",
       "creator_id": 1,
+      "event_id": 1,
       "nb_volunteers": 5,
       "volunteer_ids": [
         4
@@ -45,6 +47,7 @@
       "id": 3,
       "name": "Job 3",
       "creator_id": 4,
+      "event_id": 2,
       "nb_volunteers": 10,
       "volunteer_ids": []
     }

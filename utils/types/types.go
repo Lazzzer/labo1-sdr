@@ -21,6 +21,7 @@ type Job struct {
 	Id           int    `json:"id"`
 	Name         string `json:"name"`
 	CreatorId    int    `json:"creator_id"`
+	EventId      int    `json:"event_id"`
 	NbVolunteers int    `json:"nb_volunteers"`
 	VolunteerIds []int  `json:"volunteer_ids"`
 }

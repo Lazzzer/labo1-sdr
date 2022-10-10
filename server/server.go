@@ -75,25 +75,90 @@ func verifyUser(username, password string) (utils.User, bool) {
 	return returnedUser, ok
 }
 
+// TODO: version générique
+func getEventById(id int) (utils.Event, bool) {
+	events := <-eChan
+
+	var returnedEvent utils.Event
+	ok := false
+
+	for _, event := range events {
+		if event.Id == id {
+			returnedEvent = event
+			ok = true
+			break
+		}
+	}
+
+	go func() {
+		eChan <- events
+	}()
+
+	return returnedEvent, ok
+}
+
+func getJobById(id int) (utils.Job, bool) {
+	jobs := <-jChan
+
+	var returnedJob utils.Job
+	ok := false
+
+	for _, job := range jobs {
+		if job.Id == id {
+			returnedJob = job
+			ok = true
+			break
+		}
+	}
+
+	go func() {
+		jChan <- jobs
+	}()
+
+	return returnedJob, ok
+}
+
 func register(args []string) string {
 
 	if len(args) != utils.REGISTER.MinArgs {
 		return invalidNbArgsMessage
 	}
 
-	// idEvent := args[0]
-	// idJob := args[1]
+	idEvent, _ := strconv.Atoi(args[0])
+	idJob, _ := strconv.Atoi(args[1])
 	username := args[2]
 	password := args[3]
 
-	user, ok := verifyUser(username, password)
-
-	if !ok {
+	user, okUser := verifyUser(username, password)
+	if !okUser {
 		return "Error: Access denied.\n"
 	}
 
-	// TODO : Ajouter l'utilisateur à l'événement
-	return "You're in " + user.Username + "! \n"
+	event, okEvent := getEventById(idEvent)
+	if !okEvent {
+		return "Error: Invalid event id.\n"
+	} else {
+		if event.CreatorId == user.Id {
+			return "Error: You cannot register to your own event.\n"
+		}
+	}
+
+	job, okJob := getJobById(idJob)
+	if !okJob {
+		return "Error: Invalid job id.\n"
+	} else {
+		if job.EventId != event.Id {
+			return "Error: Job id is not found for this event id.\n"
+		}
+		if job.NbVolunteers == len(job.VolunteerIds) {
+			return "Error: No more volunteers available for this job.\n"
+		}
+	}
+
+	//TODO: créer fonction permettant de modifier un job avec le channel
+	job.VolunteerIds = append(job.VolunteerIds, user.Id)
+
+	return "You're registered " + user.Username + "! \n"
 }
 
 func processCommand(command string) (string, bool) {
@@ -175,6 +240,10 @@ func main() {
 
 	go func() {
 		eChan <- events
+	}()
+
+	go func() {
+		jChan <- jobs
 	}()
 
 	for {
