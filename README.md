@@ -17,8 +17,8 @@ help
 # Créer une manifestation (Demande le mot de passe de l'utilisateur)
 create <name> <username> <job1> <nbVolunteer1> [<job2> <nbVolunteer2> ...]
 
-# Clore une manifestation (Demande le mot de passe de l'utilisateur)
-close <idEvent> <username>
+# Clore une manifestation (Demande le nom d'utilisateur et le mot de passe de l'utilisateur)
+close <idEvent> [[<username> <password>]]
 
 # S'inscrire à une manifestation (Demande le nom d'utilisateur et le mot de passe de l'utilisateur)
 register <idEvent> <idJob> [[<username> <password>]]

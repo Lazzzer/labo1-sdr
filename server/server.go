@@ -131,6 +131,60 @@ func addUserToJob(idJob, idEvent, idUser int) (string, bool) {
 	return errMsg, ok
 }
 
+func closeEvent(idEvent, idUser int) (string, bool) {
+	events := <-eChan
+	jobs := <-jChan
+
+	var newJobs []utils.Job
+	var newEvents []utils.Event
+	var index int
+	ok := false
+	errMsg := ""
+
+	for i, event := range events {
+		if event.Id == idEvent {
+			index = i
+			ok = true
+		} else {
+			newEvents = append(newEvents, event)
+		}
+	}
+
+	if !ok {
+		errMsg = "Error: Event not found with given id.\n"
+	} else if events[index].CreatorId != idUser {
+		errMsg = "Error: Only the creator of the event can delete it.\n"
+		ok = false
+	} else {
+		for _, job := range jobs {
+			if job.EventId != idEvent {
+				newJobs = append(newJobs, job)
+			}
+		}
+	}
+
+	if !ok {
+		go func() {
+			eChan <- events
+		}()
+
+		go func() {
+			jChan <- jobs
+		}()
+	} else {
+		go func() {
+			eChan <- newEvents
+		}()
+
+		go func() {
+			jChan <- newJobs
+		}()
+	}
+
+	return errMsg, ok
+
+}
+
 // Command processing
 
 // TODO: Présentation clean
@@ -162,6 +216,29 @@ func showHelp() string {
 	help += "# Quit the program:\nquit\n"
 	help += "---------------------------------------------------------\n"
 	return help
+}
+
+func close(args []string) string {
+	if len(args) != utils.CLOSE.MinArgs {
+		return invalidNbArgsMessage
+	}
+
+	idEvent, _ := strconv.Atoi(args[0])
+	username := args[1]
+	password := args[2]
+
+	user, okUser := verifyUser(username, password)
+	if !okUser {
+		return "Error: Access denied.\n"
+	}
+
+	errMsg, ok := closeEvent(idEvent, user.Id)
+
+	if !ok {
+		return errMsg
+	}
+
+	return "Event with id " + strconv.Itoa(idEvent) + " is closed.\n"
 }
 
 func createEvent() string {
@@ -220,7 +297,7 @@ func processCommand(command string) (string, bool) {
 	case utils.CREATE.Name:
 		response = "TODO"
 	case utils.CLOSE.Name:
-		response = "TODO"
+		response = close(args)
 	case utils.REGISTER.Name:
 		response = register(args)
 	case utils.SHOW_ALL.Name:
