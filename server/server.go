@@ -19,39 +19,32 @@ var eChan = make(chan []utils.Event)
 var jChan = make(chan []utils.Job)
 var uChan = make(chan []utils.User)
 
-// TODO: Présentation clean
-func showEvents() string {
+func printDebug(title string) {
+	fmt.Println(title)
+
+	users := <-uChan
 	events := <-eChan
-	response := "Events:\n"
+	jobs := <-jChan
+
+	fmt.Print("\nUsers: ")
+	fmt.Println(users)
+	fmt.Print("\nEvents: ")
+	fmt.Println(events)
+	fmt.Print("\nJobs: ")
+	fmt.Println(jobs)
+	fmt.Println()
+
+	go func() {
+		uChan <- users
+	}()
 
 	go func() {
 		eChan <- events
 	}()
 
-	for _, event := range events {
-		response += event.Name + "\n"
-	}
-
-	return response
-}
-
-func showHelp() string {
-	var help = "---------------------------------------------------------\n"
-	help += "# Description of the command:\nHow to use the command\n \n"
-	help += "# Display all commands:\nhelp\n \n"
-	help += "# Create an event (will ask your password):\ncreate <eventName> <username> <job1> <nbVolunteer1> [<job2> <nbVolunteer2> ...]\n \n"
-	help += "# Close an event (will ask your password):\nclose <idEvent> <username>\n \n"
-	help += "# Register to an event (will ask your password):\nregister <idEvent> <idJob> <username>\n \n"
-	help += "# Show all events:\nshowAll\n \n"
-	help += "# Show all jobs from an event:\nshowJobs <idEvent>\n \n"
-	help += "# Show all volunteers from an event:\njobRepartition <idEvent>\n \n"
-	help += "# Quit the program:\nquit\n"
-	help += "---------------------------------------------------------\n"
-	return help
-}
-
-func createEvent() string {
-	return "create"
+	go func() {
+		jChan <- jobs
+	}()
 }
 
 func verifyUser(username, password string) (utils.User, bool) {
@@ -96,65 +89,83 @@ func getEventById(id int) (utils.Event, bool) {
 	return returnedEvent, ok
 }
 
-func printDebug(title string) {
-	fmt.Println(title)
-
-	users := <-uChan
-	events := <-eChan
+func addUserToJob(idJob, idEvent, idUser int) (string, bool) {
 	jobs := <-jChan
 
-	fmt.Print("\nUsers: ")
-	fmt.Println(users)
-	fmt.Print("\nEvents: ")
-	fmt.Println(events)
-	fmt.Print("\nJobs: ")
-	fmt.Println(jobs)
-	fmt.Println()
+	var index int
+	ok := false
+	errMsg := ""
+
+	for i, job := range jobs {
+		if job.Id == idJob {
+			index = i
+			break
+		}
+	}
+
+	if jobs[index].EventId != idEvent {
+		errMsg = "Error: Given event id does not match id in job.\n"
+	} else if jobs[index].CreatorId == idUser {
+		errMsg = "Error: Creator of the event cannot register for a job.\n"
+	} else if len(jobs[index].VolunteerIds) == jobs[index].NbVolunteers {
+		errMsg = "Error: Job is already full.\n"
+	} else {
+		ok = true
+		for _, id := range jobs[index].VolunteerIds {
+			if id == idUser {
+				ok = false
+				errMsg = "Error: User is already registered in this job.\n"
+				break
+			}
+		}
+	}
+
+	if ok {
+		jobs[index].VolunteerIds = append(jobs[index].VolunteerIds, idUser)
+	}
 
 	go func() {
-		uChan <- users
+		jChan <- jobs
 	}()
+
+	return errMsg, ok
+}
+
+// Command processing
+
+// TODO: Présentation clean
+func showEvents() string {
+	events := <-eChan
+	response := "Events:\n"
 
 	go func() {
 		eChan <- events
 	}()
 
-	go func() {
-		jChan <- jobs
-	}()
+	for _, event := range events {
+		response += event.Name + "\n"
+	}
+
+	return response
 }
 
-func addUserToJob(idJob, idEvent, idUser int) bool {
-	jobs := <-jChan
+func showHelp() string {
+	var help = "---------------------------------------------------------\n"
+	help += "# Description of the command:\nHow to use the command\n \n"
+	help += "# Display all commands:\nhelp\n \n"
+	help += "# Create an event (will ask your password):\ncreate <eventName> <username> <job1> <nbVolunteer1> [<job2> <nbVolunteer2> ...]\n \n"
+	help += "# Close an event (will ask your password):\nclose <idEvent> <username>\n \n"
+	help += "# Register to an event (will ask your password):\nregister <idEvent> <idJob> <username>\n \n"
+	help += "# Show all events:\nshowAll\n \n"
+	help += "# Show all jobs from an event:\nshowJobs <idEvent>\n \n"
+	help += "# Show all volunteers from an event:\njobRepartition <idEvent>\n \n"
+	help += "# Quit the program:\nquit\n"
+	help += "---------------------------------------------------------\n"
+	return help
+}
 
-	var index int
-	ok := false
-
-	for i, job := range jobs {
-		if job.Id == idJob {
-			index = i
-			ok = true
-			break
-		}
-	}
-
-	if jobs[index].EventId == idEvent && jobs[index].CreatorId != idUser && len(jobs[index].VolunteerIds) < jobs[index].NbVolunteers {
-		for _, id := range jobs[index].VolunteerIds {
-			if id == idUser {
-				ok = false
-				break
-			}
-		}
-		jobs[index].VolunteerIds = append(jobs[index].VolunteerIds, idUser)
-	} else {
-		ok = false
-	}
-
-	go func() {
-		jChan <- jobs
-	}()
-
-	return ok
+func createEvent() string {
+	return "create"
 }
 
 func register(args []string) string {
@@ -174,17 +185,17 @@ func register(args []string) string {
 
 	event, okEvent := getEventById(idEvent)
 	if !okEvent {
-		return "Error: Invalid event id.\n"
+		return "Error: Event not found by this id.\n"
 	} else {
 		if event.CreatorId == user.Id {
-			return "Error: You cannot register to your own event.\n"
+			return "Error: Creator of the event cannot register for a job.\n"
 		}
 	}
 
-	okJob := addUserToJob(idJob, idEvent, user.Id)
+	msg, okJob := addUserToJob(idJob, idEvent, user.Id)
 
 	if !okJob {
-		return "Error: Error during registration of user in job.\n"
+		return msg
 	}
 	return "User " + user.Username + " registered to job with id " + strconv.Itoa(idJob) + " in event " + event.Name + ".\n"
 }
@@ -207,7 +218,7 @@ func processCommand(command string) (string, bool) {
 	case utils.HELP.Name:
 		response = showHelp()
 	case utils.CREATE.Name:
-		response = createEvent()
+		response = "TODO"
 	case utils.CLOSE.Name:
 		response = "TODO"
 	case utils.REGISTER.Name:

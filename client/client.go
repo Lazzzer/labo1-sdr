@@ -19,27 +19,24 @@ import (
 var ErrorEmptyInput = errors.New("empty input")
 var ErrorInvalidInput = errors.New("invalid input")
 
-func askCredentials() string {
-
-	var username string
+func askCredentials() (string, error) {
 	fmt.Println("Enter Username: ")
 	username, errUsername := bufio.NewReader(os.Stdin).ReadString('\n')
 	usernameArr := strings.Fields(username)
 
 	if errUsername != nil || len(usernameArr) != 1 {
-		log.Fatal(errUsername)
+		return "", fmt.Errorf("invalid username")
 	}
-
 	username = usernameArr[0]
 
 	fmt.Println("Enter Password: ")
-	bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+	bytePassword, errPassword := term.ReadPassword(int(syscall.Stdin))
 
-	if err != nil {
-		log.Fatal(err)
+	if errPassword != nil {
+		return "", errPassword
 	}
 
-	return username + " " + string(bytePassword)
+	return username + " " + string(bytePassword), nil
 }
 
 func processInput(input string) (string, error) {
@@ -54,12 +51,16 @@ func processInput(input string) (string, error) {
 	for _, command := range utils.COMMANDS {
 		if args[0] == command.Name {
 			if command.Auth {
-				processedInput += " " + askCredentials()
+				credentials, err := askCredentials()
+				if err != nil {
+					return "", ErrorInvalidInput
+				}
+				processedInput += " " + credentials
 			}
 			return processedInput, nil
 		}
 	}
-	return processedInput, ErrorInvalidInput
+	return "", ErrorInvalidInput
 }
 
 func main() {
@@ -86,7 +87,7 @@ func main() {
 
 		if err != nil {
 			if err == ErrorInvalidInput {
-				fmt.Println("Error: Invalid command. Type 'help' for a list of commands.")
+				fmt.Println("Error: Invalid input. Type 'help' for a list of commands.")
 			}
 			continue
 		}
