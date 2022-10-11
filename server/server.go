@@ -75,7 +75,6 @@ func verifyUser(username, password string) (utils.User, bool) {
 	return returnedUser, ok
 }
 
-// TODO: version générique
 func getEventById(id int) (utils.Event, bool) {
 	events := <-eChan
 
@@ -97,29 +96,68 @@ func getEventById(id int) (utils.Event, bool) {
 	return returnedEvent, ok
 }
 
-func getJobById(id int) (utils.Job, bool) {
+func printDebug(title string) {
+	fmt.Println(title)
+
+	users := <-uChan
+	events := <-eChan
 	jobs := <-jChan
 
-	var returnedJob utils.Job
+	fmt.Print("\nUsers: ")
+	fmt.Println(users)
+	fmt.Print("\nEvents: ")
+	fmt.Println(events)
+	fmt.Print("\nJobs: ")
+	fmt.Println(jobs)
+	fmt.Println()
+
+	go func() {
+		uChan <- users
+	}()
+
+	go func() {
+		eChan <- events
+	}()
+
+	go func() {
+		jChan <- jobs
+	}()
+}
+
+func addUserToJob(idJob, idEvent, idUser int) bool {
+	jobs := <-jChan
+
+	var index int
 	ok := false
 
-	for _, job := range jobs {
-		if job.Id == id {
-			returnedJob = job
+	for i, job := range jobs {
+		if job.Id == idJob {
+			index = i
 			ok = true
 			break
 		}
+	}
+
+	if jobs[index].EventId == idEvent && jobs[index].CreatorId != idUser && len(jobs[index].VolunteerIds) < jobs[index].NbVolunteers {
+		for _, id := range jobs[index].VolunteerIds {
+			if id == idUser {
+				ok = false
+				break
+			}
+		}
+		jobs[index].VolunteerIds = append(jobs[index].VolunteerIds, idUser)
+	} else {
+		ok = false
 	}
 
 	go func() {
 		jChan <- jobs
 	}()
 
-	return returnedJob, ok
+	return ok
 }
 
 func register(args []string) string {
-
 	if len(args) != utils.REGISTER.MinArgs {
 		return invalidNbArgsMessage
 	}
@@ -143,22 +181,12 @@ func register(args []string) string {
 		}
 	}
 
-	job, okJob := getJobById(idJob)
+	okJob := addUserToJob(idJob, idEvent, user.Id)
+
 	if !okJob {
-		return "Error: Invalid job id.\n"
-	} else {
-		if job.EventId != event.Id {
-			return "Error: Job id is not found for this event id.\n"
-		}
-		if job.NbVolunteers == len(job.VolunteerIds) {
-			return "Error: No more volunteers available for this job.\n"
-		}
+		return "Error: Error during registration of user in job.\n"
 	}
-
-	//TODO: créer fonction permettant de modifier un job avec le channel
-	job.VolunteerIds = append(job.VolunteerIds, user.Id)
-
-	return "You're registered " + user.Username + "! \n"
+	return "User " + user.Username + " registered to job with id " + strconv.Itoa(idJob) + " in event " + event.Name + ".\n"
 }
 
 func processCommand(command string) (string, bool) {
@@ -172,6 +200,8 @@ func processCommand(command string) (string, bool) {
 	name := args[0]
 	args = args[1:]
 	end := false
+
+	printDebug("\n---------- START COMMAND ----------")
 
 	switch name {
 	case utils.HELP.Name:
@@ -193,6 +223,8 @@ func processCommand(command string) (string, bool) {
 	default:
 		response = "Error: Invalid command. Type 'help' for a list of commands.\n"
 	}
+
+	printDebug("\n---------- END COMMAND ----------")
 
 	return response, end
 }
@@ -223,10 +255,6 @@ func handleConn(conn net.Conn) {
 func main() {
 	config := utils.GetConfig("config.json")
 	users, events, jobs := utils.GetEntities("entities.json")
-
-	fmt.Println(users)
-	fmt.Println(events)
-	fmt.Println(jobs)
 
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(config.Port))
 	if err != nil {

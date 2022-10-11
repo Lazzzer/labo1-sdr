@@ -10,24 +10,36 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/Lazzzer/labo1-sdr/utils"
+	"golang.org/x/term"
 )
 
 var ErrorEmptyInput = errors.New("empty input")
 var ErrorInvalidInput = errors.New("invalid input")
 
-func askPassword() string {
-	var password string
-	fmt.Print("Password: ")
-	// TODO: Lecture de la saisie sans afficher les caractères
-	// fmt.Scanln(&password)
-	// source: https://stackoverflow.com/a/30363853/10093604 lol
-	fmt.Print("\033[8m")
-	fmt.Scan(&password)
-	fmt.Print("\033[28m")
+func askCredentials() string {
 
-	return password
+	var username string
+	fmt.Println("Enter Username: ")
+	username, errUsername := bufio.NewReader(os.Stdin).ReadString('\n')
+	usernameArr := strings.Fields(username)
+
+	if errUsername != nil || len(usernameArr) != 1 {
+		log.Fatal(errUsername)
+	}
+
+	username = usernameArr[0]
+
+	fmt.Println("Enter Password: ")
+	bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return username + " " + string(bytePassword)
 }
 
 func processInput(input string) (string, error) {
@@ -42,7 +54,7 @@ func processInput(input string) (string, error) {
 	for _, command := range utils.COMMANDS {
 		if args[0] == command.Name {
 			if command.Auth {
-				processedInput += " " + askPassword()
+				processedInput += " " + askCredentials()
 			}
 			return processedInput, nil
 		}
