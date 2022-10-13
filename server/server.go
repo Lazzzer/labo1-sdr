@@ -89,7 +89,17 @@ func getEventById(id int) (utils.Event, bool) {
 	return returnedEvent, ok
 }
 
-func addUserToJob(idJob, idEvent, idUser int) (string, bool) {
+func removeUserInJob(idUser int, job *utils.Job) {
+	for i, volunteerId := range job.VolunteerIds {
+		if volunteerId == idUser {
+			job.VolunteerIds[i] = job.VolunteerIds[len(job.VolunteerIds)-1]
+			job.VolunteerIds = job.VolunteerIds[:len(job.VolunteerIds)-1]
+			break
+		}
+	}
+}
+
+func addUserToJob(event *utils.Event, idJob, idUser int) (string, bool) {
 	jobs := <-jChan
 
 	var index int
@@ -103,13 +113,14 @@ func addUserToJob(idJob, idEvent, idUser int) (string, bool) {
 		}
 	}
 
-	if jobs[index].EventId != idEvent {
+	if jobs[index].EventId != event.Id {
 		errMsg = "Error: Given event id does not match id in job.\n"
 	} else if jobs[index].CreatorId == idUser {
 		errMsg = "Error: Creator of the event cannot register for a job.\n"
 	} else if len(jobs[index].VolunteerIds) == jobs[index].NbVolunteers {
 		errMsg = "Error: Job is already full.\n"
 	} else {
+
 		ok = true
 		for _, id := range jobs[index].VolunteerIds {
 			if id == idUser {
@@ -117,6 +128,11 @@ func addUserToJob(idJob, idEvent, idUser int) (string, bool) {
 				errMsg = "Error: User is already registered in this job.\n"
 				break
 			}
+		}
+
+		// Suppression de l'utilisateur dans un job de la manifestation
+		for i := range event.JobIds {
+			removeUserInJob(idUser, &jobs[i])
 		}
 	}
 
@@ -269,7 +285,7 @@ func register(args []string) string {
 		}
 	}
 
-	msg, okJob := addUserToJob(idJob, idEvent, user.Id)
+	msg, okJob := addUserToJob(&event, idJob, user.Id)
 
 	if !okJob {
 		return msg
