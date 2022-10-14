@@ -129,14 +129,13 @@ func addUserToJob(event *utils.Event, idJob, idUser int) (string, bool) {
 				break
 			}
 		}
+	}
 
+	if ok {
 		// Suppression de l'utilisateur dans un job de la manifestation
 		for i := range event.JobIds {
 			removeUserInJob(idUser, &jobs[i])
 		}
-	}
-
-	if ok {
 		jobs[index].VolunteerIds = append(jobs[index].VolunteerIds, idUser)
 	}
 
