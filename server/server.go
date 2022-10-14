@@ -15,9 +15,9 @@ import (
 var invalidNbArgsMessage = "Error: Invalid number of arguments. Type 'help' for more information.\n"
 
 // Channels
-var eChan = make(chan []utils.Event)
-var jChan = make(chan []utils.Job)
-var uChan = make(chan []utils.User)
+var eChan = make(chan []utils.Event, 1)
+var jChan = make(chan []utils.Job, 1)
+var uChan = make(chan []utils.User, 1)
 
 func printDebug(title string) {
 	fmt.Println(title)
@@ -34,17 +34,9 @@ func printDebug(title string) {
 	fmt.Println(jobs)
 	fmt.Println()
 
-	go func() {
-		uChan <- users
-	}()
-
-	go func() {
-		eChan <- events
-	}()
-
-	go func() {
-		jChan <- jobs
-	}()
+	uChan <- users
+	eChan <- events
+	jChan <- jobs
 }
 
 func verifyUser(username, password string) (utils.User, bool) {
@@ -61,9 +53,7 @@ func verifyUser(username, password string) (utils.User, bool) {
 		}
 	}
 
-	go func() {
-		uChan <- users
-	}()
+	uChan <- users
 
 	return returnedUser, ok
 }
@@ -82,9 +72,7 @@ func getEventById(id int) (utils.Event, bool) {
 		}
 	}
 
-	go func() {
-		eChan <- events
-	}()
+	eChan <- events
 
 	return returnedEvent, ok
 }
@@ -139,9 +127,7 @@ func addUserToJob(event *utils.Event, idJob, idUser int) (string, bool) {
 		jobs[index].VolunteerIds = append(jobs[index].VolunteerIds, idUser)
 	}
 
-	go func() {
-		jChan <- jobs
-	}()
+	jChan <- jobs
 
 	return errMsg, ok
 }
@@ -179,21 +165,11 @@ func closeEvent(idEvent, idUser int) (string, bool) {
 	}
 
 	if !ok {
-		go func() {
-			eChan <- events
-		}()
-
-		go func() {
-			jChan <- jobs
-		}()
+		eChan <- events
+		jChan <- jobs
 	} else {
-		go func() {
-			eChan <- newEvents
-		}()
-
-		go func() {
-			jChan <- newJobs
-		}()
+		eChan <- newEvents
+		jChan <- newJobs
 	}
 
 	return errMsg, ok
@@ -207,9 +183,7 @@ func showEvents() string {
 	events := <-eChan
 	response := "Events:\n"
 
-	go func() {
-		eChan <- events
-	}()
+	eChan <- events
 
 	for _, event := range events {
 		response += event.Name + "\n"
@@ -369,17 +343,9 @@ func main() {
 	}
 	defer listener.Close()
 
-	go func() {
-		uChan <- users
-	}()
-
-	go func() {
-		eChan <- events
-	}()
-
-	go func() {
-		jChan <- jobs
-	}()
+	uChan <- users
+	eChan <- events
+	jChan <- jobs
 
 	for {
 		conn, err := listener.Accept()
