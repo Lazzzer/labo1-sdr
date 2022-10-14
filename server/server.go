@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -22,23 +23,25 @@ var uChan = make(chan []utils.User, 1)
 
 // Debug
 func printDebug(title string) {
-	fmt.Println(title)
+	if !config.Debug {
+		fmt.Println(title)
 
-	users := <-uChan
-	events := <-eChan
-	jobs := <-jChan
+		users := <-uChan
+		events := <-eChan
+		jobs := <-jChan
 
-	fmt.Print("\nUsers: ")
-	fmt.Println(users)
-	fmt.Print("\nEvents: ")
-	fmt.Println(events)
-	fmt.Print("\nJobs: ")
-	fmt.Println(jobs)
-	fmt.Println()
+		fmt.Print("\nUsers: ")
+		fmt.Println(users)
+		fmt.Print("\nEvents: ")
+		fmt.Println(events)
+		fmt.Print("\nJobs: ")
+		fmt.Println(jobs)
+		fmt.Println()
 
-	uChan <- users
-	eChan <- events
-	jChan <- jobs
+		uChan <- users
+		eChan <- events
+		jChan <- jobs
+	}
 }
 
 func debug(entity string, debug, start bool) {
@@ -53,8 +56,7 @@ func debug(entity string, debug, start bool) {
 }
 
 func verifyUser(username, password string) (utils.User, bool) {
-	users := <-uChan
-	debug("users", true, true)
+	users := getEntitiesFromChannel(uChan)
 
 	var returnedUser utils.User
 	ok := false
@@ -67,15 +69,13 @@ func verifyUser(username, password string) (utils.User, bool) {
 		}
 	}
 
-	uChan <- users
-	debug("users", true, false)
+	loadEntitiesToChannel(uChan, users)
 
 	return returnedUser, ok
 }
 
 func getEventById(id int) (utils.Event, bool) {
-	events := <-eChan
-	debug("events", true, true)
+	events := getEntitiesFromChannel(eChan)
 
 	var returnedEvent utils.Event
 	ok := false
@@ -88,8 +88,7 @@ func getEventById(id int) (utils.Event, bool) {
 		}
 	}
 
-	eChan <- events
-	debug("events", true, false)
+	loadEntitiesToChannel(eChan, events)
 
 	return returnedEvent, ok
 }
@@ -105,8 +104,7 @@ func removeUserInJob(idUser int, job *utils.Job) {
 }
 
 func addUserToJob(event *utils.Event, idJob, idUser int) (string, bool) {
-	jobs := <-jChan
-	debug("jobs", true, true)
+	jobs := getEntitiesFromChannel(jChan)
 
 	var index int
 	ok := false
@@ -147,17 +145,13 @@ func addUserToJob(event *utils.Event, idJob, idUser int) (string, bool) {
 		jobs[index].VolunteerIds = append(jobs[index].VolunteerIds, idUser)
 	}
 
-	jChan <- jobs
-	debug("jobs", true, false)
+	loadEntitiesToChannel(jChan, jobs)
 
 	return errMsg, ok
 }
 
 func closeEvent(idEvent, idUser int) (string, bool) {
-	events := <-eChan
-	debug("events", true, true)
-	jobs := <-jChan
-	debug("jobs", true, true)
+	events := getEntitiesFromChannel(eChan)
 
 	var index int
 	ok := false
@@ -183,10 +177,7 @@ func closeEvent(idEvent, idUser int) (string, bool) {
 		ok = true
 	}
 
-	eChan <- events
-	debug("events", true, false)
-	jChan <- jobs
-	debug("jobs", true, false)
+	loadEntitiesToChannel(eChan, events)
 
 	return errMsg, ok
 }
@@ -195,13 +186,12 @@ func closeEvent(idEvent, idUser int) (string, bool) {
 
 // TODO: Présentation clean
 func showEvents() string {
-	events := <-eChan
-	debug("events", true, true)
+
+	events := getEntitiesFromChannel(eChan)
 
 	response := "Events:\n"
 
-	eChan <- events
-	debug("events", true, false)
+	loadEntitiesToChannel(eChan, events)
 
 	for _, event := range events {
 		response += event.Name + "\n"
@@ -345,6 +335,18 @@ func register(args []string) string {
 	return "User " + user.Username + " registered to job with id " + strconv.Itoa(idJob) + " in event " + event.Name + ".\n"
 }
 
+func getEntitiesFromChannel[T utils.Event | utils.Job | utils.User](ch <-chan []T) []T {
+	entities := <-ch
+	debug(reflect.TypeOf(entities).String(), true, true)
+
+	return entities
+}
+
+func loadEntitiesToChannel[T utils.Event | utils.Job | utils.User](ch chan<- []T, entities []T) {
+	ch <- entities
+	debug(reflect.TypeOf(entities).String(), true, false)
+}
+
 func processCommand(command string) (string, bool) {
 	args := strings.Fields(command)
 
@@ -357,7 +359,7 @@ func processCommand(command string) (string, bool) {
 	args = args[1:]
 	end := false
 
-	// printDebug("\n---------- START COMMAND ----------")
+	printDebug("\n---------- START COMMAND ----------")
 
 	switch name {
 	case utils.HELP.Name:
@@ -380,7 +382,7 @@ func processCommand(command string) (string, bool) {
 		response = "Error: Invalid command. Type 'help' for a list of commands.\n"
 	}
 
-	// printDebug("\n---------- END COMMAND ----------")
+	printDebug("\n---------- END COMMAND ----------")
 
 	return response, end
 }
