@@ -12,6 +12,7 @@ import (
 	"github.com/Lazzzer/labo1-sdr/utils"
 )
 
+var config utils.Config
 var invalidNbArgsMessage = "Error: Invalid number of arguments. Type 'help' for more information.\n"
 
 // Channels
@@ -19,6 +20,7 @@ var eChan = make(chan []utils.Event, 1)
 var jChan = make(chan []utils.Job, 1)
 var uChan = make(chan []utils.User, 1)
 
+// Debug
 func printDebug(title string) {
 	fmt.Println(title)
 
@@ -39,8 +41,20 @@ func printDebug(title string) {
 	jChan <- jobs
 }
 
+func debug(entity string, debug, start bool) {
+	if config.Debug {
+		if start {
+			log.Println("DEBUG: using     shared entity: " + entity)
+			time.Sleep(4 * time.Second)
+		} else {
+			log.Println("DEBUG: releasing shared entity: " + entity)
+		}
+	}
+}
+
 func verifyUser(username, password string) (utils.User, bool) {
 	users := <-uChan
+	debug("users", true, true)
 
 	var returnedUser utils.User
 	ok := false
@@ -54,12 +68,14 @@ func verifyUser(username, password string) (utils.User, bool) {
 	}
 
 	uChan <- users
+	debug("users", true, false)
 
 	return returnedUser, ok
 }
 
 func getEventById(id int) (utils.Event, bool) {
 	events := <-eChan
+	debug("events", true, true)
 
 	var returnedEvent utils.Event
 	ok := false
@@ -73,6 +89,7 @@ func getEventById(id int) (utils.Event, bool) {
 	}
 
 	eChan <- events
+	debug("events", true, false)
 
 	return returnedEvent, ok
 }
@@ -89,6 +106,7 @@ func removeUserInJob(idUser int, job *utils.Job) {
 
 func addUserToJob(event *utils.Event, idJob, idUser int) (string, bool) {
 	jobs := <-jChan
+	debug("jobs", true, true)
 
 	var index int
 	ok := false
@@ -130,13 +148,16 @@ func addUserToJob(event *utils.Event, idJob, idUser int) (string, bool) {
 	}
 
 	jChan <- jobs
+	debug("jobs", true, false)
 
 	return errMsg, ok
 }
 
 func closeEvent(idEvent, idUser int) (string, bool) {
 	events := <-eChan
+	debug("events", true, true)
 	jobs := <-jChan
+	debug("jobs", true, true)
 
 	var index int
 	ok := false
@@ -163,10 +184,11 @@ func closeEvent(idEvent, idUser int) (string, bool) {
 	}
 
 	eChan <- events
+	debug("events", true, false)
 	jChan <- jobs
+	debug("jobs", true, false)
 
 	return errMsg, ok
-
 }
 
 // Command processing
@@ -174,9 +196,12 @@ func closeEvent(idEvent, idUser int) (string, bool) {
 // TODO: Présentation clean
 func showEvents() string {
 	events := <-eChan
+	debug("events", true, true)
+
 	response := "Events:\n"
 
 	eChan <- events
+	debug("events", true, false)
 
 	for _, event := range events {
 		response += event.Name + "\n"
@@ -332,7 +357,7 @@ func processCommand(command string) (string, bool) {
 	args = args[1:]
 	end := false
 
-	printDebug("\n---------- START COMMAND ----------")
+	// printDebug("\n---------- START COMMAND ----------")
 
 	switch name {
 	case utils.HELP.Name:
@@ -355,7 +380,7 @@ func processCommand(command string) (string, bool) {
 		response = "Error: Invalid command. Type 'help' for a list of commands.\n"
 	}
 
-	printDebug("\n---------- END COMMAND ----------")
+	// printDebug("\n---------- END COMMAND ----------")
 
 	return response, end
 }
@@ -384,7 +409,7 @@ func handleConn(conn net.Conn) {
 }
 
 func main() {
-	config := utils.GetConfig("config.json")
+	config = utils.GetConfig("config.json")
 	users, events, jobs := utils.GetEntities("entities.json")
 
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(config.Port))
