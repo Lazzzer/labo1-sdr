@@ -1,8 +1,9 @@
 package types
 
 type Config struct {
-	Host string `json:"host,omitempty"`
-	Port int    `json:"port"`
+	Host  string `json:"host,omitempty"`
+	Debug bool   `json:"debug,omitempty"`
+	Port  int    `json:"port"`
 }
 
 type Command struct {
@@ -29,6 +30,7 @@ type Job struct {
 type Event struct {
 	Id        int    `json:"id"`
 	Name      string `json:"name"`
+	Closed    bool   `json:"closed"`
 	CreatorId int    `json:"creator_id"`
 	JobIds    []int  `json:"job_ids"`
 }

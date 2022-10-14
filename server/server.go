@@ -121,8 +121,10 @@ func addUserToJob(event *utils.Event, idJob, idUser int) (string, bool) {
 
 	if ok {
 		// Suppression de l'utilisateur dans un job de la manifestation
-		for i := range event.JobIds {
-			removeUserInJob(idUser, &jobs[i])
+		for i, job := range jobs {
+			if job.EventId == event.Id {
+				removeUserInJob(idUser, &jobs[i])
+			}
 		}
 		jobs[index].VolunteerIds = append(jobs[index].VolunteerIds, idUser)
 	}
@@ -136,41 +138,32 @@ func closeEvent(idEvent, idUser int) (string, bool) {
 	events := <-eChan
 	jobs := <-jChan
 
-	var newJobs []utils.Job
-	var newEvents []utils.Event
 	var index int
 	ok := false
+	found := false
 	errMsg := ""
 
 	for i, event := range events {
 		if event.Id == idEvent {
 			index = i
-			ok = true
-		} else {
-			newEvents = append(newEvents, event)
+			found = true
+			break
 		}
 	}
 
-	if !ok {
+	if !found {
 		errMsg = "Error: Event not found with given id.\n"
 	} else if events[index].CreatorId != idUser {
-		errMsg = "Error: Only the creator of the event can delete it.\n"
-		ok = false
+		errMsg = "Error: Only the creator of the event can close it.\n"
+	} else if events[index].Closed {
+		errMsg = "Error: Event is already closed.\n"
 	} else {
-		for _, job := range jobs {
-			if job.EventId != idEvent {
-				newJobs = append(newJobs, job)
-			}
-		}
+		events[index].Closed = true
+		ok = true
 	}
 
-	if !ok {
-		eChan <- events
-		jChan <- jobs
-	} else {
-		eChan <- newEvents
-		jChan <- newJobs
-	}
+	eChan <- events
+	jChan <- jobs
 
 	return errMsg, ok
 
@@ -212,9 +205,13 @@ func close(args []string) string {
 		return invalidNbArgsMessage
 	}
 
-	idEvent, _ := strconv.Atoi(args[0])
+	idEvent, errEvent := strconv.Atoi(args[0])
 	username := args[1]
 	password := args[2]
+
+	if errEvent != nil {
+		return "Error: event id must be integer.\n"
+	}
 
 	user, okUser := verifyUser(username, password)
 	if !okUser {
@@ -307,6 +304,8 @@ func register(args []string) string {
 	event, okEvent := getEventById(idEvent)
 	if !okEvent {
 		return "Error: Event not found by this id.\n"
+	} else if event.Closed {
+		return "Error: Event is closed.\n"
 	} else {
 		if event.CreatorId == user.Id {
 			return "Error: Creator of the event cannot register for a job.\n"
