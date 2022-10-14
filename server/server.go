@@ -266,10 +266,14 @@ func register(args []string) string {
 		return invalidNbArgsMessage
 	}
 
-	idEvent, _ := strconv.Atoi(args[0])
-	idJob, _ := strconv.Atoi(args[1])
+	idEvent, errEvent := strconv.Atoi(args[0])
+	idJob, errJob := strconv.Atoi(args[1])
 	username := args[2]
 	password := args[3]
+
+	if errEvent != nil || errJob != nil {
+		return "Error: Ids must be integers.\n"
+	}
 
 	user, okUser := verifyUser(username, password)
 	if !okUser {
