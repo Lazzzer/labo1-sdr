@@ -230,8 +230,59 @@ func close(args []string) string {
 	return "Event with id " + strconv.Itoa(idEvent) + " is closed.\n"
 }
 
-func createEvent() string {
-	return "create"
+func createEvent(command []string) string {
+	if len(command) < 5 || len(command)%2 != 1 {
+		return invalidNbArgsMessage
+	}
+
+	var nbVolunteersPerJob []int
+	var jobsName []string
+	for i := 1; i < len(command)-2; i++ {
+		if i%2 == 0 {
+			if nbVolunteer, err := strconv.Atoi(command[i]); err != nil || nbVolunteer < 0 {
+				return "The number of volunteers must be an positive integer."
+			} else {
+				nbVolunteersPerJob = append(nbVolunteersPerJob, nbVolunteer)
+			}
+		} else {
+			jobsName = append(jobsName, command[i])
+		}
+	}
+
+	username := command[len(command)-2]
+	password := command[len(command)-1]
+
+	user, okUser := verifyUser(username, password)
+
+	if !okUser {
+		return "Error: Access denied."
+	}
+
+	jobs := <-jChan
+	events := <-eChan
+	eventId := len(events) + 1
+	currentJobId := len(jobs) + 1
+	allJobsId := []int{}
+	for i := 0; i < len(jobsName); i++ {
+		jobs = append(jobs, utils.Job{
+			Id:           currentJobId,
+			Name:         jobsName[i],
+			CreatorId:    nbVolunteersPerJob[i],
+			EventId:      user.Id,
+			NbVolunteers: eventId,
+			VolunteerIds: []int{}})
+		allJobsId = append(allJobsId, currentJobId)
+		currentJobId++
+	}
+
+	jChan <- jobs
+
+	newEvent := utils.Event{Id: eventId, Name: command[0], CreatorId: user.Id, JobIds: allJobsId}
+	events = append(events, newEvent)
+
+	eChan <- events
+
+	return "Event created"
 }
 
 func register(args []string) string {
@@ -288,7 +339,7 @@ func processCommand(command string) (string, bool) {
 	case utils.HELP.Name:
 		response = showHelp()
 	case utils.CREATE.Name:
-		response = "TODO"
+		response = createEvent(args)
 	case utils.CLOSE.Name:
 		response = close(args)
 	case utils.REGISTER.Name:
