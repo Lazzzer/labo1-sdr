@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"bufio"
@@ -16,7 +16,7 @@ import (
 )
 
 type Client struct {
-	config utils.Config
+	Config utils.Config
 }
 
 func (c *Client) askCredentials() (string, error) {
@@ -64,7 +64,7 @@ func (c *Client) processInput(input string) (string, error) {
 }
 
 func (c *Client) Run() {
-	conn, err := net.Dial("tcp", c.config.Host+":"+strconv.Itoa(c.config.Port))
+	conn, err := net.Dial("tcp", c.Config.Host+":"+strconv.Itoa(c.Config.Port))
 
 	if err != nil {
 		log.Fatal(err)
@@ -95,10 +95,4 @@ func (c *Client) Run() {
 			break
 		}
 	}
-}
-
-func main() {
-	config := utils.GetConfig("config.json")
-	client := Client{config}
-	client.Run()
 }

@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"bufio"
@@ -15,7 +15,7 @@ import (
 )
 
 type Server struct {
-	config utils.Config
+	Config utils.Config
 	eChan  chan []utils.Event
 	jChan  chan []utils.Job
 	uChan  chan []utils.User
@@ -36,7 +36,7 @@ func loadEntitiesToChannel[T utils.Event | utils.Job | utils.User](ch chan<- []T
 
 // Debug
 func (s *Server) printDebug(title string) {
-	if !s.config.Debug {
+	if !s.Config.Debug {
 		fmt.Println(title)
 
 		users := <-s.uChan
@@ -58,7 +58,7 @@ func (s *Server) printDebug(title string) {
 }
 
 func (s *Server) debug(entity string, debug, start bool) {
-	if s.config.Debug {
+	if s.Config.Debug {
 		if start {
 			log.Println("DEBUG: using     shared entity: " + entity)
 			time.Sleep(4 * time.Second)
@@ -439,9 +439,9 @@ func (s *Server) handleConn(conn net.Conn) {
 }
 
 func (s *Server) Run() {
-	users, events, jobs := utils.GetEntities("entities.json")
+	users, events, jobs := utils.GetEntities("server/entities.json")
 
-	listener, err := net.Listen("tcp", ":"+strconv.Itoa(s.config.Port))
+	listener, err := net.Listen("tcp", ":"+strconv.Itoa(s.Config.Port))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -465,10 +465,4 @@ func (s *Server) Run() {
 		}
 		go s.handleConn(conn)
 	}
-}
-
-func main() {
-	config := utils.GetConfig("config.json")
-	server := Server{config: config}
-	server.Run()
 }
