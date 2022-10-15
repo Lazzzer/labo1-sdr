@@ -7,9 +7,10 @@ type Config struct {
 }
 
 type Command struct {
-	Name    string `json:"name"`
-	Auth    bool   `json:"auth"`
-	MinArgs int    `json:"minArgs"`
+	Name       string
+	Auth       bool
+	MinArgs    int
+	MinOptArgs int
 }
 
 type User struct {

@@ -196,17 +196,25 @@ func (s *Server) closeEvent(idEvent, idUser int) (string, bool) {
 	return errMsg, ok
 }
 
-func (s *Server) checkNbArgs(args []string, command *types.Command) (string, bool) {
-	if len(args) != command.MinArgs {
-		return "Error: Invalid number of arguments. Type 'help' for more information.\n", false
+func (s *Server) checkNbArgs(args []string, command *types.Command, optional bool) (string, bool) {
+	msg := "Error: Invalid number of arguments. Type 'help' for more information.\n"
+	if optional {
+		if len(args) < command.MinArgs || len(args)%command.MinOptArgs != 1 {
+			return msg, false
+		}
+	} else {
+		if len(args) != command.MinArgs && len(args)%command.MinOptArgs != 1 {
+			return msg, false
+		}
 	}
+
 	return "", true
 }
 
 // Functions of each command
 func (s *Server) showHelp(args []string) string {
 
-	if msg, ok := s.checkNbArgs(args, &utils.HELP); !ok {
+	if msg, ok := s.checkNbArgs(args, &utils.HELP, false); !ok {
 		return msg
 	}
 
@@ -281,7 +289,7 @@ func (s *Server) createEvent(command []string) string {
 
 func (s *Server) close(args []string) string {
 
-	if msg, ok := s.checkNbArgs(args, &utils.CLOSE); !ok {
+	if msg, ok := s.checkNbArgs(args, &utils.CLOSE, false); !ok {
 		return msg
 	}
 
@@ -309,7 +317,7 @@ func (s *Server) close(args []string) string {
 
 func (s *Server) register(args []string) string {
 
-	if msg, ok := s.checkNbArgs(args, &utils.REGISTER); !ok {
+	if msg, ok := s.checkNbArgs(args, &utils.REGISTER, false); !ok {
 		return msg
 	}
 
@@ -348,7 +356,7 @@ func (s *Server) register(args []string) string {
 
 // TODO: Présentation clean
 func (s *Server) showEvents(args []string) string {
-	if msg, ok := s.checkNbArgs(args, &utils.SHOW_ALL); !ok {
+	if msg, ok := s.checkNbArgs(args, &utils.SHOW_ALL, false); !ok {
 		return msg
 	}
 
