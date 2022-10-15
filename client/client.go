@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -16,10 +15,11 @@ import (
 	"golang.org/x/term"
 )
 
-var ErrorEmptyInput = errors.New("empty input")
-var ErrorInvalidInput = errors.New("invalid input")
+type Client struct {
+	config utils.Config
+}
 
-func askCredentials() (string, error) {
+func (c *Client) askCredentials() (string, error) {
 	fmt.Println("Enter Username: ")
 	username, errUsername := bufio.NewReader(os.Stdin).ReadString('\n')
 	usernameArr := strings.Fields(username)
@@ -39,11 +39,11 @@ func askCredentials() (string, error) {
 	return username + " " + string(bytePassword), nil
 }
 
-func processInput(input string) (string, error) {
+func (c *Client) processInput(input string) (string, error) {
 	args := strings.Fields(input)
 
 	if len(args) == 0 {
-		return "", ErrorEmptyInput
+		return "", fmt.Errorf("empty input")
 	}
 
 	processedInput := strings.Join(args, " ")
@@ -51,22 +51,20 @@ func processInput(input string) (string, error) {
 	for _, command := range utils.COMMANDS {
 		if args[0] == command.Name {
 			if command.Auth {
-				credentials, err := askCredentials()
+				credentials, err := c.askCredentials()
 				if err != nil {
-					return "", ErrorInvalidInput
+					return "", fmt.Errorf("invalid input")
 				}
 				processedInput += " " + credentials
 			}
 			return processedInput, nil
 		}
 	}
-	return "", ErrorInvalidInput
+	return "", fmt.Errorf("invalid input")
 }
 
-func main() {
-	config := utils.GetConfig("config.json")
-
-	conn, err := net.Dial("tcp", config.Host+":"+strconv.Itoa(config.Port))
+func (c *Client) Run() {
+	conn, err := net.Dial("tcp", c.config.Host+":"+strconv.Itoa(c.config.Port))
 
 	if err != nil {
 		log.Fatal(err)
@@ -83,12 +81,10 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		input, _ := reader.ReadString('\n')
-		processedInput, err := processInput(input)
+		processedInput, err := c.processInput(input)
 
 		if err != nil {
-			if err == ErrorInvalidInput {
-				fmt.Println("Error: Invalid input. Type 'help' for a list of commands.")
-			}
+			fmt.Println("Error: Invalid input. Type 'help' for a list of commands.")
 			continue
 		}
 
@@ -99,4 +95,10 @@ func main() {
 			break
 		}
 	}
+}
+
+func main() {
+	config := utils.GetConfig("config.json")
+	client := Client{config}
+	client.Run()
 }
