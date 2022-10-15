@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"flag"
 	"fmt"
 
@@ -9,6 +10,9 @@ import (
 	"github.com/Lazzzer/labo1-sdr/utils"
 )
 
+//go:embed config.json
+var configJson string
+
 func main() {
 
 	serverMode := flag.Bool("server", false, "Boolean: Run program in server mode. Default is client mode")
@@ -16,8 +20,9 @@ func main() {
 
 	flag.Parse()
 
+	config := utils.GetConfig(configJson)
+
 	if *serverMode {
-		config := utils.GetConfig("server/config.json")
 
 		if *debug {
 			config.Debug = true
@@ -32,7 +37,6 @@ func main() {
 			return
 		}
 
-		config := utils.GetConfig("client/config.json")
 		client := client.Client{Config: config}
 		client.Run()
 	}

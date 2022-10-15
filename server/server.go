@@ -2,6 +2,7 @@ package server
 
 import (
 	"bufio"
+	_ "embed"
 	"fmt"
 	"log"
 	"net"
@@ -13,6 +14,9 @@ import (
 	"github.com/Lazzzer/labo1-sdr/utils"
 	"github.com/Lazzzer/labo1-sdr/utils/types"
 )
+
+//go:embed entities.json
+var entities string
 
 type Server struct {
 	Config utils.Config
@@ -439,7 +443,8 @@ func (s *Server) handleConn(conn net.Conn) {
 }
 
 func (s *Server) Run() {
-	users, events, jobs := utils.GetEntities("server/entities.json")
+
+	users, events, jobs := utils.GetEntities(entities)
 
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(s.Config.Port))
 	if err != nil {
