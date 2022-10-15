@@ -11,24 +11,37 @@ import (
 	"time"
 
 	"github.com/Lazzzer/labo1-sdr/utils"
+	"github.com/Lazzzer/labo1-sdr/utils/types"
 )
 
-var config utils.Config
-var invalidNbArgsMessage = "Error: Invalid number of arguments. Type 'help' for more information.\n"
+type Server struct {
+	config utils.Config
+	eChan  chan []utils.Event
+	jChan  chan []utils.Job
+	uChan  chan []utils.User
+}
 
-// Channels
-var eChan = make(chan []utils.Event, 1)
-var jChan = make(chan []utils.Job, 1)
-var uChan = make(chan []utils.User, 1)
+// Les méthodes avec des types génériques n'existant pas en Go, on utilise des fonctions qui ne sont pas liées au type Server
+func getEntitiesFromChannel[T utils.Event | utils.Job | utils.User](ch <-chan []T, s *Server) []T {
+	entities := <-ch
+	s.debug(reflect.TypeOf(entities).String(), true, true)
+
+	return entities
+}
+
+func loadEntitiesToChannel[T utils.Event | utils.Job | utils.User](ch chan<- []T, entities []T, s *Server) {
+	ch <- entities
+	s.debug(reflect.TypeOf(entities).String(), true, false)
+}
 
 // Debug
-func printDebug(title string) {
-	if !config.Debug {
+func (s *Server) printDebug(title string) {
+	if !s.config.Debug {
 		fmt.Println(title)
 
-		users := <-uChan
-		events := <-eChan
-		jobs := <-jChan
+		users := <-s.uChan
+		events := <-s.eChan
+		jobs := <-s.jChan
 
 		fmt.Print("\nUsers: ")
 		fmt.Println(users)
@@ -38,14 +51,14 @@ func printDebug(title string) {
 		fmt.Println(jobs)
 		fmt.Println()
 
-		uChan <- users
-		eChan <- events
-		jChan <- jobs
+		s.uChan <- users
+		s.eChan <- events
+		s.jChan <- jobs
 	}
 }
 
-func debug(entity string, debug, start bool) {
-	if config.Debug {
+func (s *Server) debug(entity string, debug, start bool) {
+	if s.config.Debug {
 		if start {
 			log.Println("DEBUG: using     shared entity: " + entity)
 			time.Sleep(4 * time.Second)
@@ -55,8 +68,9 @@ func debug(entity string, debug, start bool) {
 	}
 }
 
-func verifyUser(username, password string) (utils.User, bool) {
-	users := getEntitiesFromChannel(uChan)
+// Helpers
+func (s *Server) verifyUser(username, password string) (utils.User, bool) {
+	users := getEntitiesFromChannel(s.uChan, s)
 
 	var returnedUser utils.User
 	ok := false
@@ -69,13 +83,13 @@ func verifyUser(username, password string) (utils.User, bool) {
 		}
 	}
 
-	loadEntitiesToChannel(uChan, users)
+	loadEntitiesToChannel(s.uChan, users, s)
 
 	return returnedUser, ok
 }
 
-func getEventById(id int) (utils.Event, bool) {
-	events := getEntitiesFromChannel(eChan)
+func (s *Server) getEventById(id int) (utils.Event, bool) {
+	events := getEntitiesFromChannel(s.eChan, s)
 
 	var returnedEvent utils.Event
 	ok := false
@@ -88,12 +102,12 @@ func getEventById(id int) (utils.Event, bool) {
 		}
 	}
 
-	loadEntitiesToChannel(eChan, events)
+	loadEntitiesToChannel(s.eChan, events, s)
 
 	return returnedEvent, ok
 }
 
-func removeUserInJob(idUser int, job *utils.Job) {
+func (s *Server) removeUserInJob(idUser int, job *utils.Job) {
 	for i, volunteerId := range job.VolunteerIds {
 		if volunteerId == idUser {
 			job.VolunteerIds[i] = job.VolunteerIds[len(job.VolunteerIds)-1]
@@ -103,8 +117,8 @@ func removeUserInJob(idUser int, job *utils.Job) {
 	}
 }
 
-func addUserToJob(event *utils.Event, idJob, idUser int) (string, bool) {
-	jobs := getEntitiesFromChannel(jChan)
+func (s *Server) addUserToJob(event *utils.Event, idJob, idUser int) (string, bool) {
+	jobs := getEntitiesFromChannel(s.jChan, s)
 
 	var index int
 	ok := false
@@ -139,19 +153,19 @@ func addUserToJob(event *utils.Event, idJob, idUser int) (string, bool) {
 		// Suppression de l'utilisateur dans un job de la manifestation
 		for i, job := range jobs {
 			if job.EventId == event.Id {
-				removeUserInJob(idUser, &jobs[i])
+				s.removeUserInJob(idUser, &jobs[i])
 			}
 		}
 		jobs[index].VolunteerIds = append(jobs[index].VolunteerIds, idUser)
 	}
 
-	loadEntitiesToChannel(jChan, jobs)
+	loadEntitiesToChannel(s.jChan, jobs, s)
 
 	return errMsg, ok
 }
 
-func closeEvent(idEvent, idUser int) (string, bool) {
-	events := getEntitiesFromChannel(eChan)
+func (s *Server) closeEvent(idEvent, idUser int) (string, bool) {
+	events := getEntitiesFromChannel(s.eChan, s)
 
 	var index int
 	ok := false
@@ -177,30 +191,25 @@ func closeEvent(idEvent, idUser int) (string, bool) {
 		ok = true
 	}
 
-	loadEntitiesToChannel(eChan, events)
+	loadEntitiesToChannel(s.eChan, events, s)
 
 	return errMsg, ok
 }
 
-// Command processing
-
-// TODO: Présentation clean
-func showEvents() string {
-
-	events := getEntitiesFromChannel(eChan)
-
-	response := "Events:\n"
-
-	loadEntitiesToChannel(eChan, events)
-
-	for _, event := range events {
-		response += event.Name + "\n"
+func (s *Server) checkNbArgs(args []string, command *types.Command) (string, bool) {
+	if len(args) != command.MinArgs {
+		return "Error: Invalid number of arguments. Type 'help' for more information.\n", false
 	}
-
-	return response
+	return "", true
 }
 
-func showHelp() string {
+// Functions of each command
+func (s *Server) showHelp(args []string) string {
+
+	if msg, ok := s.checkNbArgs(args, &utils.HELP); !ok {
+		return msg
+	}
+
 	var help = "---------------------------------------------------------\n"
 	help += "# Description of the command:\nHow to use the command\n \n"
 	help += "# Display all commands:\nhelp\n \n"
@@ -215,36 +224,9 @@ func showHelp() string {
 	return help
 }
 
-func close(args []string) string {
-	if len(args) != utils.CLOSE.MinArgs {
-		return invalidNbArgsMessage
-	}
-
-	idEvent, errEvent := strconv.Atoi(args[0])
-	username := args[1]
-	password := args[2]
-
-	if errEvent != nil {
-		return "Error: event id must be integer.\n"
-	}
-
-	user, okUser := verifyUser(username, password)
-	if !okUser {
-		return "Error: Access denied.\n"
-	}
-
-	errMsg, ok := closeEvent(idEvent, user.Id)
-
-	if !ok {
-		return errMsg
-	}
-
-	return "Event with id " + strconv.Itoa(idEvent) + " is closed.\n"
-}
-
-func createEvent(command []string) string {
+func (s *Server) createEvent(command []string) string {
 	if len(command) < 5 || len(command)%2 != 1 {
-		return invalidNbArgsMessage
+		return "TODO"
 	}
 
 	var nbVolunteersPerJob []int
@@ -264,14 +246,14 @@ func createEvent(command []string) string {
 	username := command[len(command)-2]
 	password := command[len(command)-1]
 
-	user, okUser := verifyUser(username, password)
+	user, okUser := s.verifyUser(username, password)
 
 	if !okUser {
 		return "Error: Access denied."
 	}
 
-	jobs := <-jChan
-	events := <-eChan
+	jobs := <-s.jChan
+	events := <-s.eChan
 	eventId := len(events) + 1
 	currentJobId := len(jobs) + 1
 	allJobsId := []int{}
@@ -287,19 +269,48 @@ func createEvent(command []string) string {
 		currentJobId++
 	}
 
-	jChan <- jobs
+	s.jChan <- jobs
 
 	newEvent := utils.Event{Id: eventId, Name: command[0], CreatorId: user.Id, JobIds: allJobsId}
 	events = append(events, newEvent)
 
-	eChan <- events
+	s.eChan <- events
 
 	return "Event created"
 }
 
-func register(args []string) string {
-	if len(args) != utils.REGISTER.MinArgs {
-		return invalidNbArgsMessage
+func (s *Server) close(args []string) string {
+
+	if msg, ok := s.checkNbArgs(args, &utils.CLOSE); !ok {
+		return msg
+	}
+
+	idEvent, errEvent := strconv.Atoi(args[0])
+	username := args[1]
+	password := args[2]
+
+	if errEvent != nil {
+		return "Error: event id must be integer.\n"
+	}
+
+	user, okUser := s.verifyUser(username, password)
+	if !okUser {
+		return "Error: Access denied.\n"
+	}
+
+	errMsg, ok := s.closeEvent(idEvent, user.Id)
+
+	if !ok {
+		return errMsg
+	}
+
+	return "Event with id " + strconv.Itoa(idEvent) + " is closed.\n"
+}
+
+func (s *Server) register(args []string) string {
+
+	if msg, ok := s.checkNbArgs(args, &utils.REGISTER); !ok {
+		return msg
 	}
 
 	idEvent, errEvent := strconv.Atoi(args[0])
@@ -311,12 +322,12 @@ func register(args []string) string {
 		return "Error: Ids must be integers.\n"
 	}
 
-	user, okUser := verifyUser(username, password)
+	user, okUser := s.verifyUser(username, password)
 	if !okUser {
 		return "Error: Access denied.\n"
 	}
 
-	event, okEvent := getEventById(idEvent)
+	event, okEvent := s.getEventById(idEvent)
 	if !okEvent {
 		return "Error: Event not found by this id.\n"
 	} else if event.Closed {
@@ -327,7 +338,7 @@ func register(args []string) string {
 		}
 	}
 
-	msg, okJob := addUserToJob(&event, idJob, user.Id)
+	msg, okJob := s.addUserToJob(&event, idJob, user.Id)
 
 	if !okJob {
 		return msg
@@ -335,19 +346,27 @@ func register(args []string) string {
 	return "User " + user.Username + " registered to job with id " + strconv.Itoa(idJob) + " in event " + event.Name + ".\n"
 }
 
-func getEntitiesFromChannel[T utils.Event | utils.Job | utils.User](ch <-chan []T) []T {
-	entities := <-ch
-	debug(reflect.TypeOf(entities).String(), true, true)
+// TODO: Présentation clean
+func (s *Server) showEvents(args []string) string {
+	if msg, ok := s.checkNbArgs(args, &utils.SHOW_ALL); !ok {
+		return msg
+	}
 
-	return entities
+	events := getEntitiesFromChannel(s.eChan, s)
+
+	response := "Events:\n"
+
+	loadEntitiesToChannel(s.eChan, events, s)
+
+	for _, event := range events {
+		response += event.Name + "\n"
+	}
+
+	return response
 }
 
-func loadEntitiesToChannel[T utils.Event | utils.Job | utils.User](ch chan<- []T, entities []T) {
-	ch <- entities
-	debug(reflect.TypeOf(entities).String(), true, false)
-}
-
-func processCommand(command string) (string, bool) {
+// Command processing
+func (s *Server) processCommand(command string) (string, bool) {
 	args := strings.Fields(command)
 
 	if len(args) == 0 {
@@ -355,23 +374,24 @@ func processCommand(command string) (string, bool) {
 	}
 
 	var response string
+
 	name := args[0]
 	args = args[1:]
 	end := false
 
-	printDebug("\n---------- START COMMAND ----------")
+	s.printDebug("\n---------- START COMMAND ----------")
 
 	switch name {
 	case utils.HELP.Name:
-		response = showHelp()
+		response = s.showHelp(args)
 	case utils.CREATE.Name:
-		response = createEvent(args)
+		response = s.createEvent(args)
 	case utils.CLOSE.Name:
-		response = close(args)
+		response = s.close(args)
 	case utils.REGISTER.Name:
-		response = register(args)
+		response = s.register(args)
 	case utils.SHOW_ALL.Name:
-		response = showEvents()
+		response = s.showEvents(args)
 	case utils.SHOW_JOBS.Name:
 		response = "TODO"
 	case utils.JOBS_REPARTITION.Name:
@@ -382,12 +402,12 @@ func processCommand(command string) (string, bool) {
 		response = "Error: Invalid command. Type 'help' for a list of commands.\n"
 	}
 
-	printDebug("\n---------- END COMMAND ----------")
+	s.printDebug("\n---------- END COMMAND ----------")
 
 	return response, end
 }
 
-func handleConn(conn net.Conn) {
+func (s *Server) handleConn(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	for {
 		input, err := reader.ReadString('\n')
@@ -397,7 +417,7 @@ func handleConn(conn net.Conn) {
 			break
 		}
 
-		response, end := processCommand(strings.TrimSpace(string(input)))
+		response, end := s.processCommand(strings.TrimSpace(string(input)))
 		fmt.Print(conn.RemoteAddr().String()+" at "+time.Now().Format("15:04:05")+" -> ", string(input))
 
 		if end {
@@ -410,19 +430,22 @@ func handleConn(conn net.Conn) {
 	conn.Close()
 }
 
-func main() {
-	config = utils.GetConfig("config.json")
+func (s *Server) Run() {
 	users, events, jobs := utils.GetEntities("entities.json")
 
-	listener, err := net.Listen("tcp", ":"+strconv.Itoa(config.Port))
+	listener, err := net.Listen("tcp", ":"+strconv.Itoa(s.config.Port))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer listener.Close()
 
-	uChan <- users
-	eChan <- events
-	jChan <- jobs
+	s.eChan = make(chan []utils.Event, 1)
+	s.jChan = make(chan []utils.Job, 1)
+	s.uChan = make(chan []utils.User, 1)
+
+	s.uChan <- users
+	s.eChan <- events
+	s.jChan <- jobs
 
 	for {
 		conn, err := listener.Accept()
@@ -432,6 +455,12 @@ func main() {
 		} else {
 			fmt.Println(conn.RemoteAddr().String() + " connected at " + time.Now().Format("15:04:05"))
 		}
-		go handleConn(conn)
+		go s.handleConn(conn)
 	}
+}
+
+func main() {
+	config := utils.GetConfig("config.json")
+	server := Server{config: config}
+	server.Run()
 }
