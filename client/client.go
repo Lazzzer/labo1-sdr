@@ -69,7 +69,18 @@ func (c *Client) Run() {
 	if err != nil {
 		log.Fatal(err)
 	} else {
-		fmt.Println("Welcome! Please enter a command.\nType 'help' for a list of commands.")
+
+		title := "  _____                 _     __  __                                   \n"
+		title += " | ____|_   _____ _ __ | |_  |  \\/  | __ _ _ __   __ _  __ _  ___ _ __ \n"
+		title += " |  _| \\ \\ / / _ \\ '_ \\| __| | |\\/| |/ _` | '_ \\ / _` |/ _` |/ _ \\ '__|\n"
+		title += " | |___ \\ V /  __/ | | | |_  | |  | | (_| | | | | (_| | (_| |  __/ |   \n"
+		title += " |_____| \\_/ \\___|_| |_|\\__| |_|  |_|\\__,_|_| |_|\\__,_|\\__, |\\___|_|   \n"
+		title += "                                                       |___/           "
+
+		fmt.Println(title)
+		fmt.Println("Labo 1 SDR - Jonathan Friedli & Lazar Pavicevic")
+		fmt.Println("\nWelcome! Please enter a command.\nType 'help' for a list of commands.")
+		fmt.Println()
 	}
 
 	defer conn.Close()

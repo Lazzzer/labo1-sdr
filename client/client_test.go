@@ -241,10 +241,10 @@ func Test_Commands_Concurrently(t *testing.T) {
 	help += "# Quit the program:\nquit\n"
 	help += "---------------------------------------------------------\n"
 
-	var showAll = "Events:\n"
-	showAll += "Montreux Jazz 2022\n"
-	showAll += "Baleinev 2023\n"
-	showAll += "Balélec 2023\n"
+	var show = "Events:\n"
+	show += "#1: Montreux Jazz 2022 (creator: 5)\n"
+	show += "#2: Baleinev 2023 (creator: 6)\n"
+	show += "#3: Balélec 2023 (creator: 7)\n"
 
 	tests := []TestInput{
 		{
@@ -254,8 +254,8 @@ func Test_Commands_Concurrently(t *testing.T) {
 		},
 		{
 			Description: "Send show command and receive message",
-			Input:       "showAll\n",
-			Expected:    showAll,
+			Input:       "show\n",
+			Expected:    show,
 		},
 	}
 

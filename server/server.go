@@ -178,7 +178,7 @@ func (s *Server) showAllEvents() string {
 
 	for i := 1; i <= len(events); i++ {
 		event := events[i]
-		response += "Event " + strconv.Itoa(i) + ": " + event.Name + " (creator: " + strconv.Itoa(event.CreatorId) + ")\n"
+		response += "#" + strconv.Itoa(i) + ": " + event.Name + " (creator: " + strconv.Itoa(event.CreatorId) + ")\n"
 	}
 
 	return response
