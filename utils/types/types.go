@@ -1,9 +1,10 @@
 package types
 
 type Config struct {
-	Host  string `json:"host,omitempty"`
-	Debug bool   `json:"debug,omitempty"`
-	Port  int    `json:"port"`
+	Host   string `json:"host,omitempty"`
+	Port   int    `json:"port"`
+	Debug  bool   `json:"debug,omitempty"`
+	Silent bool   `json:"silent,omitempty"`
 }
 
 type Command struct {

@@ -40,7 +40,7 @@ func loadEntitiesToChannel[T utils.Event | utils.Job | utils.User](ch chan<- []T
 
 // Debug
 func (s *Server) printDebug(title string) {
-	if !s.Config.Debug {
+	if !s.Config.Debug && !s.Config.Silent {
 		fmt.Println(title)
 
 		users := <-s.uChan
@@ -391,7 +391,7 @@ func (s *Server) processCommand(command string) (string, bool) {
 	args = args[1:]
 	end := false
 
-	// s.printDebug("\n---------- START COMMAND ----------")
+	s.printDebug("\n---------- START COMMAND ----------")
 
 	switch name {
 	case utils.HELP.Name:
@@ -414,7 +414,7 @@ func (s *Server) processCommand(command string) (string, bool) {
 		response = "Error: Invalid command. Type 'help' for a list of commands.\n"
 	}
 
-	// s.printDebug("\n---------- END COMMAND ----------")
+	s.printDebug("\n---------- END COMMAND ----------")
 
 	return response, end
 }
@@ -430,10 +430,14 @@ func (s *Server) handleConn(conn net.Conn) {
 		}
 
 		response, end := s.processCommand(strings.TrimSpace(string(input)))
-		fmt.Print(conn.RemoteAddr().String()+" at "+time.Now().Format("15:04:05")+" -> ", string(input))
+		if !s.Config.Silent {
+			fmt.Print(conn.RemoteAddr().String()+" at "+time.Now().Format("15:04:05")+" -> ", string(input))
+		}
 
 		if end {
-			fmt.Println(conn.RemoteAddr().String() + " disconnected at " + time.Now().Format("15:04:05"))
+			if !s.Config.Silent {
+				fmt.Println(conn.RemoteAddr().String() + " disconnected at " + time.Now().Format("15:04:05"))
+			}
 			break
 		}
 
@@ -466,7 +470,9 @@ func (s *Server) Run() {
 			fmt.Println(err)
 			return
 		} else {
-			fmt.Println(conn.RemoteAddr().String() + " connected at " + time.Now().Format("15:04:05"))
+			if !s.Config.Silent {
+				fmt.Println(conn.RemoteAddr().String() + " connected at " + time.Now().Format("15:04:05"))
+			}
 		}
 		go s.handleConn(conn)
 	}

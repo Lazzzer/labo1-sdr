@@ -22,7 +22,7 @@ type TestClient struct {
 }
 
 func init() {
-	server := server.Server{Config: utils.Config{Port: testingConfig.Port, Debug: false}}
+	server := server.Server{Config: utils.Config{Port: testingConfig.Port, Debug: false, Silent: true}}
 	go server.Run()
 }
 

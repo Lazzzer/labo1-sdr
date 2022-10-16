@@ -17,6 +17,7 @@ func main() {
 
 	serverMode := flag.Bool("server", false, "Boolean: Run program in server mode. Default is client mode")
 	debug := flag.Bool("debug", false, "Boolean: Run server in debug mode. Default is false")
+	silent := flag.Bool("silent", false, "Boolean: Run server in silent mode. Default is false")
 
 	flag.Parse()
 
@@ -28,12 +29,16 @@ func main() {
 			config.Debug = true
 		}
 
+		if *silent {
+			config.Silent = true
+		}
+
 		server := server.Server{Config: config}
 		server.Run()
 	} else {
 
-		if *debug {
-			fmt.Println("Error: Debug mode is only available in server mode, use --help or -h for more information")
+		if *debug || *silent {
+			fmt.Println("Error: Debug and silent mode are only available in server mode, use --help or -h for more information")
 			return
 		}
 
