@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/Lazzzer/labo1-sdr/server"
 	"github.com/Lazzzer/labo1-sdr/utils"
 )
 
@@ -16,6 +17,11 @@ type TestInput struct {
 
 type TestClient struct {
 	Config utils.Config
+}
+
+func init() {
+	server := server.Server{Config: utils.Config{Host: "localhost", Port: 8081, Debug: true}}
+	go server.Run()
 }
 
 func (tc *TestClient) Run(tests []TestInput, t *testing.T) {
@@ -48,8 +54,8 @@ func (tc *TestClient) Run(tests []TestInput, t *testing.T) {
 	}
 }
 
-func TestClient_Help_Command(t *testing.T) {
-	testClient := TestClient{Config: utils.Config{Host: "localhost", Port: 8080}}
+func Test_Help_Command(t *testing.T) {
+	testClient := TestClient{Config: utils.Config{Host: "localhost", Port: 8081}}
 
 	var help = "---------------------------------------------------------\n"
 	help += "# Description of the command:\nHow to use the command\n \n"
@@ -80,6 +86,5 @@ func TestClient_Help_Command(t *testing.T) {
 		// 	Expected:    "Blabla\n",
 		// },
 	}
-
 	testClient.Run(tests, t)
 }
