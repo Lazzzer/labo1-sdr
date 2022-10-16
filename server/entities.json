@@ -1,44 +1,36 @@
 {
   "users": {
     "1": {
-      "id": 1,
       "username": "jonathan",
       "password": "root"
     },
     "2": {
-      "id": 2,
       "username": "lazar",
       "password": "root"
     },
     "3": {
-      "id": 3,
       "username": "valentin",
       "password": "root"
     },
     "4": {
-      "id": 4,
       "username": "francesco",
       "password": "root"
     },
     "5": {
-      "id": 5,
       "username": "claude",
       "password": "root"
     },
     "6": {
-      "id": 6,
       "username": "john",
       "password": "root"
     },
     "7": {
-      "id": 7,
       "username": "jane",
       "password": "root"
     }
   },
   "events": {
     "1": {
-      "id": 1,
       "name": "Montreux Jazz 2022",
       "closed": true,
       "creator_id": 5,
@@ -49,7 +41,6 @@
       ]
     },
     "2": {
-      "id": 2,
       "name": "Baleinev 2023",
       "closed": false,
       "creator_id": 6,
@@ -60,7 +51,6 @@
       ]
     },
     "3": {
-      "id": 3,
       "name": "Balélec 2023",
       "closed": false,
       "creator_id": 7,
@@ -72,7 +62,6 @@
   },
   "jobs": {
     "1": {
-      "id": 1,
       "name": "Montage",
       "creator_id": 5,
       "event_id": 1,
@@ -82,7 +71,6 @@
       ]
     },
     "2": {
-      "id": 2,
       "name": "Stands",
       "creator_id": 5,
       "event_id": 1,
@@ -93,7 +81,6 @@
       ]
     },
     "3": {
-      "id": 3,
       "name": "Sécurité",
       "creator_id": 5,
       "event_id": 1,
@@ -104,7 +91,6 @@
       ]
     },
     "4": {
-      "id": 4,
       "name": "Montage",
       "creator_id": 6,
       "event_id": 2,
@@ -115,7 +101,6 @@
       ]
     },
     "5": {
-      "id": 5,
       "name": "Stands",
       "creator_id": 6,
       "event_id": 2,
@@ -126,7 +111,6 @@
       ]
     },
     "6": {
-      "id": 6,
       "name": "Sécurité",
       "creator_id": 6,
       "event_id": 2,
@@ -134,7 +118,6 @@
       "volunteer_ids": []
     },
     "7": {
-      "id": 7,
       "name": "Montage",
       "creator_id": 7,
       "event_id": 3,
@@ -142,7 +125,6 @@
       "volunteer_ids": []
     },
     "8": {
-      "id": 8,
       "name": "Stands",
       "creator_id": 7,
       "event_id": 3,

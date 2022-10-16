@@ -15,13 +15,11 @@ type Command struct {
 }
 
 type User struct {
-	Id       int    `json:"id"`
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
 type Job struct {
-	Id           int    `json:"id"`
 	Name         string `json:"name"`
 	CreatorId    int    `json:"creator_id"`
 	EventId      int    `json:"event_id"`
@@ -30,7 +28,6 @@ type Job struct {
 }
 
 type Event struct {
-	Id        int    `json:"id"`
 	Name      string `json:"name"`
 	Closed    bool   `json:"closed"`
 	CreatorId int    `json:"creator_id"`

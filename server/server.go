@@ -73,19 +73,17 @@ func (s *Server) debug(entity string, debug, start bool) {
 }
 
 // Helpers
-func (s *Server) verifyUser(username, password string) (utils.User, bool) {
+func (s *Server) verifyUser(username, password string) (int, bool) {
 	users := getEntitiesFromChannel(s.uChan, s)
 	defer loadEntitiesToChannel(s.uChan, users, s)
 
-	var returnedUser utils.User
-
-	for _, user := range users {
+	for key, user := range users {
 		if user.Username == username && user.Password == password {
-			return user, true
+			return key, true
 		}
 	}
 
-	return returnedUser, false
+	return 0, false
 }
 
 func (s *Server) removeUserInJob(idUser int, job *utils.Job) {
@@ -121,10 +119,10 @@ func (s *Server) addUserToJob(idEvent, idJob, idUser int) (string, bool) {
 		}
 
 		// Suppression de l'utilisateur dans un job de la manifestation
-		for _, exploredJob := range jobs {
+		for exploredJobId, exploredJob := range jobs {
 			if exploredJob.EventId == idEvent {
 				s.removeUserInJob(idUser, &exploredJob)
-				jobs[exploredJob.Id] = exploredJob
+				jobs[exploredJobId] = exploredJob
 			}
 		}
 		// Ajout de l'utilisateur dans son nouveau job
@@ -202,7 +200,7 @@ func (s *Server) createEvent(args []string) string {
 	username := args[len(args)-2]
 	password := args[len(args)-1]
 
-	user, okUser := s.verifyUser(username, password)
+	userId, okUser := s.verifyUser(username, password)
 
 	if !okUser {
 		return "Error: Access denied."
@@ -234,17 +232,16 @@ func (s *Server) createEvent(args []string) string {
 	allJobsId := []int{}
 	for i := 0; i < len(jobsName); i++ {
 		jobs[currentJobId] = utils.Job{
-			Id:           currentJobId,
 			Name:         jobsName[i],
 			CreatorId:    nbVolunteersPerJob[i],
-			EventId:      user.Id,
+			EventId:      userId,
 			NbVolunteers: eventId,
 			VolunteerIds: []int{}}
 		allJobsId = append(allJobsId, currentJobId)
 		currentJobId++
 	}
 
-	newEvent := utils.Event{Id: eventId, Name: args[0], CreatorId: user.Id, JobIds: allJobsId}
+	newEvent := utils.Event{Name: args[0], CreatorId: userId, JobIds: allJobsId}
 	events[eventId] = newEvent
 
 	return "Event with id " + strconv.Itoa(eventId) + " and " + strconv.Itoa(len(allJobsId)) + " job(s) " + " created\n"
@@ -264,12 +261,12 @@ func (s *Server) close(args []string) string {
 		return "Error: event id must be integer.\n"
 	}
 
-	user, okUser := s.verifyUser(username, password)
+	userId, okUser := s.verifyUser(username, password)
 	if !okUser {
 		return "Error: Access denied.\n"
 	}
 
-	errMsg, ok := s.closeEvent(idEvent, user.Id)
+	errMsg, ok := s.closeEvent(idEvent, userId)
 
 	if !ok {
 		return errMsg
@@ -293,7 +290,7 @@ func (s *Server) register(args []string) string {
 		return "Error: Ids must be integers.\n"
 	}
 
-	user, okUser := s.verifyUser(username, password)
+	userId, okUser := s.verifyUser(username, password)
 	if !okUser {
 		return "Error: Access denied.\n"
 	}
@@ -308,17 +305,17 @@ func (s *Server) register(args []string) string {
 	} else if event.Closed {
 		return "Error: Event is closed.\n"
 	} else {
-		if event.CreatorId == user.Id {
+		if event.CreatorId == userId {
 			return "Error: Creator of the event cannot register for a job.\n"
 		}
 	}
 
-	msg, okJob := s.addUserToJob(idEvent, idJob, user.Id)
+	msg, okJob := s.addUserToJob(idEvent, idJob, userId)
 
 	if !okJob {
 		return msg
 	}
-	return "User " + user.Username + " registered to job with id " + strconv.Itoa(idJob) + " in event " + event.Name + ".\n"
+	return "User registered to job with id " + strconv.Itoa(idJob) + " in event " + event.Name + ".\n"
 }
 
 // TODO: Présentation clean
