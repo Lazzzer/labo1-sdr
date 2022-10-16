@@ -70,16 +70,19 @@ func (c *Client) Run() {
 		log.Fatal(err)
 	} else {
 
-		title := "  _____                 _     __  __                                   \n"
+		title := utils.YELLOW
+		title += "  _____                 _     __  __                                   \n"
 		title += " | ____|_   _____ _ __ | |_  |  \\/  | __ _ _ __   __ _  __ _  ___ _ __ \n"
 		title += " |  _| \\ \\ / / _ \\ '_ \\| __| | |\\/| |/ _` | '_ \\ / _` |/ _` |/ _ \\ '__|\n"
 		title += " | |___ \\ V /  __/ | | | |_  | |  | | (_| | | | | (_| | (_| |  __/ |   \n"
 		title += " |_____| \\_/ \\___|_| |_|\\__| |_|  |_|\\__,_|_| |_|\\__,_|\\__, |\\___|_|   \n"
 		title += "                                                       |___/           "
+		title += utils.RESET
 
 		fmt.Println(title)
 		fmt.Println("Labo 1 SDR - Jonathan Friedli & Lazar Pavicevic")
-		fmt.Println("\nWelcome! Please enter a command.\nType 'help' for a list of commands.")
+		fmt.Println("\nWelcome! Please enter a command.")
+		fmt.Println("💡" + utils.YELLOW + "Type 'help' for a list of available commands." + utils.RESET)
 		fmt.Println()
 	}
 
