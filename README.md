@@ -14,8 +14,8 @@ Ce projet est réalisé dans le cadre du cours de Systèmes Distribués et Répa
 # Afficher de l'aide
 help
 
-# Créer une manifestation (Demande le mot de passe de l'utilisateur)
-create <name> <username> <job1> <nbVolunteer1> [<job2> <nbVolunteer2> ...]
+# Créer une manifestation (Demande le nom d'utilisateur et le mot de passe de l'utilisateur)
+create <name> <jobName1> <nbVolunteer1> [<jobName2> <nbVolunteer2> ...] [[<username> <password>]]
 
 # Clore une manifestation (Demande le nom d'utilisateur et le mot de passe de l'utilisateur)
 close <idEvent> [[<username> <password>]]
@@ -23,14 +23,11 @@ close <idEvent> [[<username> <password>]]
 # S'inscrire à une manifestation (Demande le nom d'utilisateur et le mot de passe de l'utilisateur)
 register <idEvent> <idJob> [[<username> <password>]]
 
-# Afficher toutes les manifestations
-showAll
-
-# Afficher les job d'une certaine manifestation
-showJobs <idEvent>
+# Afficher toutes les manifestations ou une manifestation spécifique
+show [<idEvent>]
 
 # Afficher les bénévoles d'une certaine manifestation
-jobRepartition <idEvent>
+jobs <idEvent>
 
 # Quitter le programme
 quit

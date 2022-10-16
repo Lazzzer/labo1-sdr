@@ -170,6 +170,46 @@ func (s *Server) checkNbArgs(args []string, command *types.Command, optional boo
 	return "", true
 }
 
+func (s *Server) showAllEvents() string {
+	events := getEntitiesFromChannel(s.eChan, s)
+	defer loadEntitiesToChannel(s.eChan, events, s)
+
+	response := "Events:\n"
+
+	for i := 1; i <= len(events); i++ {
+		event := events[i]
+		response += "Event " + strconv.Itoa(i) + ": " + event.Name + " (creator: " + strconv.Itoa(event.CreatorId) + ")\n"
+	}
+
+	return response
+}
+
+func (s *Server) showEvent(idEvent int) (string, bool) {
+	events := getEntitiesFromChannel(s.eChan, s)
+	defer loadEntitiesToChannel(s.eChan, events, s)
+
+	event, ok := events[idEvent]
+
+	if ok {
+		response := "#" + strconv.Itoa(idEvent) + ": " + event.Name + " (creator: #" + strconv.Itoa(event.CreatorId) + ")\n"
+		response += "Jobs:\n"
+
+		jobs := getEntitiesFromChannel(s.jChan, s)
+		defer loadEntitiesToChannel(s.jChan, jobs, s)
+
+		for i := 1; i <= len(jobs); i++ {
+			job := jobs[i]
+			if job.EventId == idEvent {
+				response += "Job " + strconv.Itoa(i) + ": " + job.Name + " (creator: " + strconv.Itoa(job.CreatorId) + ")\n"
+			}
+		}
+
+		return response, true
+	}
+
+	return "Error: Event not found with given id.\n", false
+}
+
 // Functions of each command
 func (s *Server) showHelp(args []string) string {
 
@@ -319,21 +359,18 @@ func (s *Server) register(args []string) string {
 }
 
 // TODO: Présentation clean
-func (s *Server) showEvents(args []string) string {
-	if msg, ok := s.checkNbArgs(args, &utils.SHOW_ALL, false); !ok {
+func (s *Server) show(args []string) string {
+
+	if len(args) == utils.SHOW.MinOptArgs {
+		idEvent, err := strconv.Atoi(args[0])
+		if err != nil {
+			return "Error: Id must be an integer.\n"
+		}
+		msg, _ := s.showEvent(idEvent)
 		return msg
+	} else {
+		return s.showAllEvents()
 	}
-
-	events := getEntitiesFromChannel(s.eChan, s)
-	defer loadEntitiesToChannel(s.eChan, events, s)
-
-	response := "Events:\n"
-
-	for _, event := range events {
-		response += event.Name + "\n"
-	}
-
-	return response
 }
 
 // Command processing
@@ -361,11 +398,9 @@ func (s *Server) processCommand(command string) (string, bool) {
 		response = s.close(args)
 	case utils.REGISTER.Name:
 		response = s.register(args)
-	case utils.SHOW_ALL.Name:
-		response = s.showEvents(args)
-	case utils.SHOW_JOBS.Name:
-		response = "TODO"
-	case utils.JOBS_REPARTITION.Name:
+	case utils.SHOW.Name:
+		response = s.show(args)
+	case utils.JOBS.Name:
 		response = "TODO"
 	case utils.QUIT.Name:
 		end = true
