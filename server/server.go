@@ -211,23 +211,35 @@ func (s *Server) showEvent(idEvent int) (string, bool) {
 }
 
 // Functions of each command
-func (s *Server) showHelp(args []string) string {
+func (s *Server) help(args []string) string {
 
 	if msg, ok := s.checkNbArgs(args, &utils.HELP, false); !ok {
 		return msg
 	}
 
-	var help = "---------------------------------------------------------\n"
-	help += "# Description of the command:\nHow to use the command\n \n"
-	help += "# Display all commands:\nhelp\n \n"
-	help += "# Create an event (will ask your password):\ncreate <eventName> <username> <job1> <nbVolunteer1> [<job2> <nbVolunteer2> ...]\n \n"
-	help += "# Close an event (will ask your password):\nclose <idEvent> <username>\n \n"
-	help += "# Register to an event (will ask your password):\nregister <idEvent> <idJob> <username>\n \n"
-	help += "# Show all events:\nshowAll\n \n"
-	help += "# Show all jobs from an event:\nshowJobs <idEvent>\n \n"
-	help += "# Show all volunteers from an event:\njobRepartition <idEvent>\n \n"
-	help += "# Quit the program:\nquit\n"
-	help += "---------------------------------------------------------\n"
+	var help = utils.YELLOW
+	help += "\n===================== 💡 HELP 💡 =============================\n\n" + utils.RESET
+	help += "ℹ️ Arguments with brackets [] are optional.\n\n"
+	help += "ℹ️ Commands with \"🔒\" need credentials (arguments in double brackets [[]]) to be used.\n"
+	help += "If you are using the client, you will have a prompt for them.\n"
+	help += "Otherwise, you have to put your credentials directly in the command.\n\n"
+	help += utils.YELLOW + "Commands list:" + utils.RESET + "\n\n"
+	help += "# Display help and list all commands\n"
+	help += utils.GREEN + "help" + utils.RESET + "\n\n"
+	help += "# 🔒 Create an event with a list of jobs and its number of volunteers needed\n"
+	help += utils.GREEN + "create" + utils.RESET + " <eventName> <jobName1> <nbVolunteer1> [<jobName2> <nbVolunteer2>...] [[<username> <password>]]\n\n"
+	help += "# 🔒 Close an event\n"
+	help += utils.GREEN + "close" + utils.RESET + " <idEvent> [[<username> <password>]]\n\n"
+	help += "# 🔒 Register as a volunteer to a job\n"
+	help += utils.GREEN + "register" + utils.RESET + " <idEvent> <idJob> [[<username> <password>]]\n\n"
+	help += "# Show all events. If the id is specified, show the event with all its jobs instead\n"
+	help += utils.GREEN + "show" + utils.RESET + " [<idEvent>]\n\n"
+	help += "# Show the distribution of volunteers from each job of an event\n"
+	help += utils.GREEN + "jobs" + utils.RESET + " <idEvent>\n\n"
+	help += "# Quit the program\n"
+	help += utils.GREEN + "quit" + utils.RESET + "\n\n"
+	help += utils.YELLOW + "=============================================================" + utils.RESET + "\n\n"
+
 	return help
 }
 
@@ -391,7 +403,7 @@ func (s *Server) processCommand(command string) (string, bool) {
 
 	switch name {
 	case utils.HELP.Name:
-		response = s.showHelp(args)
+		response = s.help(args)
 	case utils.CREATE.Name:
 		response = s.createEvent(args)
 	case utils.CLOSE.Name:
