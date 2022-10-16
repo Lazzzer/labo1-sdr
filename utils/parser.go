@@ -15,7 +15,7 @@ type Event = types.Event
 type Job = types.Job
 type User = types.User
 
-func GetEntities(content string) ([]User, []Event, []Job) {
+func GetEntities(content string) (map[int]User, map[int]Event, map[int]Job) {
 	entities := parse[Entities](content)
 	return entities.Users, entities.Events, entities.Jobs
 }

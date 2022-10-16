@@ -38,7 +38,7 @@ type Event struct {
 }
 
 type Entities struct {
-	Users  []User  `json:"users"`
-	Events []Event `json:"events"`
-	Jobs   []Job   `json:"jobs"`
+	Users  map[int]User  `json:"users"`
+	Events map[int]Event `json:"events"`
+	Jobs   map[int]Job   `json:"jobs"`
 }

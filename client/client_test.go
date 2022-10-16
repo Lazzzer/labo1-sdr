@@ -1,8 +1,10 @@
 package client
 
 import (
+	"fmt"
 	"net"
 	"strconv"
+	"sync"
 	"testing"
 
 	"github.com/Lazzzer/labo1-sdr/server"
@@ -10,6 +12,7 @@ import (
 )
 
 var testingConfig = utils.Config{Host: "localhost", Port: 8081}
+var testingDebugConfig = utils.Config{Host: "localhost", Port: 8082}
 
 type TestInput struct {
 	Description string
@@ -22,8 +25,11 @@ type TestClient struct {
 }
 
 func init() {
-	server := server.Server{Config: utils.Config{Port: testingConfig.Port, Debug: false, Silent: true}}
-	go server.Run()
+	serv := server.Server{Config: utils.Config{Port: 8081, Debug: false, Silent: true}}
+	servDebug := server.Server{Config: utils.Config{Port: 8082, Debug: true, Silent: true}}
+
+	go serv.Run()
+	go servDebug.Run()
 }
 
 func (tc *TestClient) Run(tests []TestInput, t *testing.T) {
@@ -54,6 +60,23 @@ func (tc *TestClient) Run(tests []TestInput, t *testing.T) {
 	if _, err := conn.Write([]byte("quit\n")); err != nil {
 		t.Error("Error: could not quit the server properly")
 	}
+}
+
+func run(tc *TestClient, wg *sync.WaitGroup, tests []TestInput, t *testing.T) {
+	defer wg.Done()
+	fmt.Println("Test client is running")
+	tc.Run(tests, t)
+}
+
+func runConcurrent(nbClients int, tests []TestInput, t *testing.T) {
+	var wg sync.WaitGroup
+	wg.Add(nbClients)
+	for i := 0; i < nbClients; i++ {
+		testClient := TestClient{Config: testingDebugConfig}
+		go run(&testClient, &wg, tests, t)
+	}
+	wg.Wait()
+	fmt.Println("Test clients are done")
 }
 
 func Test_Help_Command(t *testing.T) {
@@ -148,6 +171,11 @@ func Test_Register_Command(t *testing.T) {
 			Expected:    "User lazar registered to job with id 6 in event Baleinev 2023.\n",
 		},
 		{
+			Description: "Send register command for a user who left a job for another and came back to the job in the same event and receive confirmation message",
+			Input:       "register 2 4 lazar root\n",
+			Expected:    "User lazar registered to job with id 4 in event Baleinev 2023.\n",
+		},
+		{
 			Description: "Send register command with bad ids and receive error message",
 			Input:       "register bad id lazar root\n",
 			Expected:    "Error: Ids must be integers.\n",
@@ -160,7 +188,7 @@ func Test_Register_Command(t *testing.T) {
 		{
 			Description: "Send register command for inexistant job for the given event and receive error message",
 			Input:       "register 2 1000 valentin root\n",
-			Expected:    "Error: Given event id does not match id in job.\n",
+			Expected:    "Error: Job not found with given id.\n",
 		},
 		{
 			Description: "Send register command with bad credentials and receive receive error message",
@@ -194,4 +222,42 @@ func Test_Register_Command(t *testing.T) {
 		},
 	}
 	testClient.Run(tests, t)
+}
+
+func Test_Show_Command(t *testing.T) {
+	// TODO
+}
+
+func Test_Commands_Concurrently(t *testing.T) {
+	var help = "---------------------------------------------------------\n"
+	help += "# Description of the command:\nHow to use the command\n \n"
+	help += "# Display all commands:\nhelp\n \n"
+	help += "# Create an event (will ask your password):\ncreate <eventName> <username> <job1> <nbVolunteer1> [<job2> <nbVolunteer2> ...]\n \n"
+	help += "# Close an event (will ask your password):\nclose <idEvent> <username>\n \n"
+	help += "# Register to an event (will ask your password):\nregister <idEvent> <idJob> <username>\n \n"
+	help += "# Show all events:\nshowAll\n \n"
+	help += "# Show all jobs from an event:\nshowJobs <idEvent>\n \n"
+	help += "# Show all volunteers from an event:\njobRepartition <idEvent>\n \n"
+	help += "# Quit the program:\nquit\n"
+	help += "---------------------------------------------------------\n"
+
+	var showAll = "Events:\n"
+	showAll += "Montreux Jazz 2022\n"
+	showAll += "Baleinev 2023\n"
+	showAll += "Balélec 2023\n"
+
+	tests := []TestInput{
+		{
+			Description: "Send help command and receive help message",
+			Input:       "help\n",
+			Expected:    help,
+		},
+		{
+			Description: "Send invalid help command and receive error message",
+			Input:       "showAll\n",
+			Expected:    showAll,
+		},
+	}
+
+	runConcurrent(2, tests, t)
 }

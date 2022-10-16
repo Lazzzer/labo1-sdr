@@ -20,20 +20,20 @@ var entities string
 
 type Server struct {
 	Config utils.Config
-	eChan  chan []utils.Event
-	jChan  chan []utils.Job
-	uChan  chan []utils.User
+	eChan  chan map[int]utils.Event
+	jChan  chan map[int]utils.Job
+	uChan  chan map[int]utils.User
 }
 
 // Les méthodes avec des types génériques n'existant pas en Go, on utilise des fonctions qui ne sont pas liées au type Server
-func getEntitiesFromChannel[T utils.Event | utils.Job | utils.User](ch <-chan []T, s *Server) []T {
+func getEntitiesFromChannel[T utils.Event | utils.Job | utils.User](ch <-chan map[int]T, s *Server) map[int]T {
 	entities := <-ch
 	s.debug(reflect.TypeOf(entities).String(), true, true)
 
 	return entities
 }
 
-func loadEntitiesToChannel[T utils.Event | utils.Job | utils.User](ch chan<- []T, entities []T, s *Server) {
+func loadEntitiesToChannel[T utils.Event | utils.Job | utils.User](ch chan<- map[int]T, entities map[int]T, s *Server) {
 	ch <- entities
 	s.debug(reflect.TypeOf(entities).String(), true, false)
 }
@@ -124,43 +124,43 @@ func (s *Server) removeUserInJob(idUser int, job *utils.Job) {
 func (s *Server) addUserToJob(event *utils.Event, idJob, idUser int) (string, bool) {
 	jobs := getEntitiesFromChannel(s.jChan, s)
 
-	var index int
 	ok := false
 	errMsg := ""
 
-	for i, job := range jobs {
-		if job.Id == idJob {
-			index = i
-			break
-		}
-	}
+	job, okJob := jobs[idJob]
 
-	if jobs[index].EventId != event.Id {
-		errMsg = "Error: Given event id does not match id in job.\n"
-	} else if jobs[index].CreatorId == idUser {
-		errMsg = "Error: Creator of the event cannot register for a job.\n"
-	} else if len(jobs[index].VolunteerIds) == jobs[index].NbVolunteers {
-		errMsg = "Error: Job is already full.\n"
+	if okJob {
+		if job.EventId != event.Id {
+			errMsg = "Error: Given event id does not match id in job.\n"
+		} else if job.CreatorId == idUser {
+			errMsg = "Error: Creator of the event cannot register for a job.\n"
+		} else if len(job.VolunteerIds) == job.NbVolunteers {
+			errMsg = "Error: Job is already full.\n"
+		} else {
+			ok = true
+			for _, id := range job.VolunteerIds {
+				if id == idUser {
+					ok = false
+					errMsg = "Error: User is already registered in this job.\n"
+					break
+				}
+			}
+		}
+
+		if ok {
+			// Suppression de l'utilisateur dans un job de la manifestation
+			for _, exploredJob := range jobs {
+				if exploredJob.EventId == event.Id {
+					s.removeUserInJob(idUser, &exploredJob)
+					jobs[exploredJob.Id] = exploredJob
+				}
+			}
+			job.VolunteerIds = append(job.VolunteerIds, idUser)
+			jobs[idJob] = job
+		}
+
 	} else {
-
-		ok = true
-		for _, id := range jobs[index].VolunteerIds {
-			if id == idUser {
-				ok = false
-				errMsg = "Error: User is already registered in this job.\n"
-				break
-			}
-		}
-	}
-
-	if ok {
-		// Suppression de l'utilisateur dans un job de la manifestation
-		for i, job := range jobs {
-			if job.EventId == event.Id {
-				s.removeUserInJob(idUser, &jobs[i])
-			}
-		}
-		jobs[index].VolunteerIds = append(jobs[index].VolunteerIds, idUser)
+		errMsg = "Error: Job not found with given id.\n"
 	}
 
 	loadEntitiesToChannel(s.jChan, jobs, s)
@@ -171,27 +171,19 @@ func (s *Server) addUserToJob(event *utils.Event, idJob, idUser int) (string, bo
 func (s *Server) closeEvent(idEvent, idUser int) (string, bool) {
 	events := getEntitiesFromChannel(s.eChan, s)
 
-	var index int
-	ok := false
-	found := false
 	errMsg := ""
+	ok := false
+	event, okEvent := events[idEvent]
 
-	for i, event := range events {
-		if event.Id == idEvent {
-			index = i
-			found = true
-			break
-		}
-	}
-
-	if !found {
+	if !okEvent {
 		errMsg = "Error: Event not found with given id.\n"
-	} else if events[index].CreatorId != idUser {
+	} else if event.CreatorId != idUser {
 		errMsg = "Error: Only the creator of the event can close it.\n"
-	} else if events[index].Closed {
+	} else if event.Closed {
 		errMsg = "Error: Event is already closed.\n"
 	} else {
-		events[index].Closed = true
+		event.Closed = true
+		events[idEvent] = event
 		ok = true
 	}
 
@@ -237,56 +229,56 @@ func (s *Server) showHelp(args []string) string {
 }
 
 func (s *Server) createEvent(command []string) string {
-	if len(command) < 5 || len(command)%2 != 1 {
-		return "TODO"
-	}
+	// if len(command) < 5 || len(command)%2 != 1 {
+	// 	return "TODO"
+	// }
 
-	var nbVolunteersPerJob []int
-	var jobsName []string
-	for i := 1; i < len(command)-2; i++ {
-		if i%2 == 0 {
-			if nbVolunteer, err := strconv.Atoi(command[i]); err != nil || nbVolunteer < 0 {
-				return "The number of volunteers must be an positive integer."
-			} else {
-				nbVolunteersPerJob = append(nbVolunteersPerJob, nbVolunteer)
-			}
-		} else {
-			jobsName = append(jobsName, command[i])
-		}
-	}
+	// var nbVolunteersPerJob []int
+	// var jobsName []string
+	// for i := 1; i < len(command)-2; i++ {
+	// 	if i%2 == 0 {
+	// 		if nbVolunteer, err := strconv.Atoi(command[i]); err != nil || nbVolunteer < 0 {
+	// 			return "The number of volunteers must be an positive integer."
+	// 		} else {
+	// 			nbVolunteersPerJob = append(nbVolunteersPerJob, nbVolunteer)
+	// 		}
+	// 	} else {
+	// 		jobsName = append(jobsName, command[i])
+	// 	}
+	// }
 
-	username := command[len(command)-2]
-	password := command[len(command)-1]
+	// username := command[len(command)-2]
+	// password := command[len(command)-1]
 
-	user, okUser := s.verifyUser(username, password)
+	// user, okUser := s.verifyUser(username, password)
 
-	if !okUser {
-		return "Error: Access denied."
-	}
+	// if !okUser {
+	// 	return "Error: Access denied."
+	// }
 
-	jobs := <-s.jChan
-	events := <-s.eChan
-	eventId := len(events) + 1
-	currentJobId := len(jobs) + 1
-	allJobsId := []int{}
-	for i := 0; i < len(jobsName); i++ {
-		jobs = append(jobs, utils.Job{
-			Id:           currentJobId,
-			Name:         jobsName[i],
-			CreatorId:    nbVolunteersPerJob[i],
-			EventId:      user.Id,
-			NbVolunteers: eventId,
-			VolunteerIds: []int{}})
-		allJobsId = append(allJobsId, currentJobId)
-		currentJobId++
-	}
+	// jobs := <-s.jChan
+	// events := <-s.eChan
+	// eventId := len(events) + 1
+	// currentJobId := len(jobs) + 1
+	// allJobsId := []int{}
+	// for i := 0; i < len(jobsName); i++ {
+	// 	jobs = append(jobs, utils.Job{
+	// 		Id:           currentJobId,
+	// 		Name:         jobsName[i],
+	// 		CreatorId:    nbVolunteersPerJob[i],
+	// 		EventId:      user.Id,
+	// 		NbVolunteers: eventId,
+	// 		VolunteerIds: []int{}})
+	// 	allJobsId = append(allJobsId, currentJobId)
+	// 	currentJobId++
+	// }
 
-	s.jChan <- jobs
+	// s.jChan <- jobs
 
-	newEvent := utils.Event{Id: eventId, Name: command[0], CreatorId: user.Id, JobIds: allJobsId}
-	events = append(events, newEvent)
+	// newEvent := utils.Event{Id: eventId, Name: command[0], CreatorId: user.Id, JobIds: allJobsId}
+	// events = append(events, newEvent)
 
-	s.eChan <- events
+	// s.eChan <- events
 
 	return "Event created"
 }
@@ -456,9 +448,9 @@ func (s *Server) Run() {
 	}
 	defer listener.Close()
 
-	s.eChan = make(chan []utils.Event, 1)
-	s.jChan = make(chan []utils.Job, 1)
-	s.uChan = make(chan []utils.User, 1)
+	s.eChan = make(chan map[int]utils.Event, 1)
+	s.jChan = make(chan map[int]utils.Job, 1)
+	s.uChan = make(chan map[int]utils.User, 1)
 
 	s.uChan <- users
 	s.eChan <- events
