@@ -1,12 +1,10 @@
 package client
 
 import (
-	"fmt"
 	"net"
 	"strconv"
 	"testing"
 
-	"github.com/Lazzzer/labo1-sdr/server"
 	"github.com/Lazzzer/labo1-sdr/utils"
 )
 
@@ -24,36 +22,67 @@ func (tc *TestClient) Run(tests []TestInput, t *testing.T) {
 	conn, err := net.Dial("tcp", tc.Config.Host+":"+strconv.Itoa(tc.Config.Port))
 
 	if err != nil {
-		t.Error("Could not connect to server", err)
-	} else {
-		fmt.Println("Welcome! Please enter a command.\nType 'help' for a list of commands.")
+		t.Error("Error: could not connect to server")
+		return
 	}
+
 	defer conn.Close()
 
 	for _, test := range tests {
-		fmt.Println(test.Description)
-		conn.Write(test.Input)
-		buf := make([]byte, 1024)
-		conn.Read(buf)
-		if string(buf) != string(test.Expected) {
-			t.Errorf("Expected %s, got %s", string(test.Expected), string(buf))
+		if _, err := conn.Write(test.Input); err != nil {
+			t.Error("Error: could not write to server")
 		}
+
+		out := make([]byte, 1024)
+		if _, err := conn.Read(out); err == nil {
+			if string(out) != string(test.Expected) {
+				t.Error("\nError for test: ", test.Description, "\n\nResponse did match expected output:\n>> Expected\n", string(test.Expected), "\n>> Got\n", string(out))
+			}
+		} else {
+			t.Error("Error: could not read from connection")
+		}
+	}
+
+	if _, err := conn.Write([]byte("quit\n")); err != nil {
+		t.Error("Error: could not quit the server properly")
 	}
 }
 
-func TestClient_Can_Connect(t *testing.T) {
+func TestClient_Help_Command(t *testing.T) {
+	testClient := TestClient{Config: utils.Config{Host: "localhost", Port: 8080}}
+	buffValid := make([]byte, 1024)
+	buffInvalid := make([]byte, 1024)
 
-	server := server.Server{Config: utils.Config{Port: 8081, Debug: false}}
-	go server.Run()
+	var help = "---------------------------------------------------------\n"
+	help += "# Description of the command:\nHow to use the command\n \n"
+	help += "# Display all commands:\nhelp\n \n"
+	help += "# Create an event (will ask your password):\ncreate <eventName> <username> <job1> <nbVolunteer1> [<job2> <nbVolunteer2> ...]\n \n"
+	help += "# Close an event (will ask your password):\nclose <idEvent> <username>\n \n"
+	help += "# Register to an event (will ask your password):\nregister <idEvent> <idJob> <username>\n \n"
+	help += "# Show all events:\nshowAll\n \n"
+	help += "# Show all jobs from an event:\nshowJobs <idEvent>\n \n"
+	help += "# Show all volunteers from an event:\njobRepartition <idEvent>\n \n"
+	help += "# Quit the program:\nquit\n"
+	help += "---------------------------------------------------------\n"
+	copy(buffValid, []byte(help))
 
-	testClient := TestClient{Config: utils.Config{Host: "localhost", Port: 8081}}
+	correctCommand := TestInput{
+		Description: "Send valid help command and receive help message",
+		Input:       []byte("help\n"),
+		Expected:    buffValid,
+	}
+
+	copy(buffInvalid, []byte("Error: Invalid command. Type 'help' for a list of commands.\n"))
+
+	badCommand := TestInput{
+		Description: "Send invalid help command and receive error message",
+		Input:       []byte("helpp\n"),
+		Expected:    buffInvalid,
+	}
 
 	tests := []TestInput{
-		{
-			Description: "Client can connect and get welcome message",
-			Input:       []byte(""),
-			Expected:    []byte("Welcome! Please enter a command.\nType 'help' for a list of commands."),
-		},
+		correctCommand,
+		badCommand,
 	}
 
 	testClient.Run(tests, t)
