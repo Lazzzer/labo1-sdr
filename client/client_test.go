@@ -9,6 +9,8 @@ import (
 	"github.com/Lazzzer/labo1-sdr/utils"
 )
 
+var testingConfig = utils.Config{Host: "localhost", Port: 8081}
+
 type TestInput struct {
 	Description string
 	Input       string
@@ -20,7 +22,7 @@ type TestClient struct {
 }
 
 func init() {
-	server := server.Server{Config: utils.Config{Host: "localhost", Port: 8081, Debug: true}}
+	server := server.Server{Config: utils.Config{Port: testingConfig.Port, Debug: true}}
 	go server.Run()
 }
 
@@ -55,7 +57,7 @@ func (tc *TestClient) Run(tests []TestInput, t *testing.T) {
 }
 
 func Test_Help_Command(t *testing.T) {
-	testClient := TestClient{Config: utils.Config{Host: "localhost", Port: 8081}}
+	testClient := TestClient{Config: testingConfig}
 
 	var help = "---------------------------------------------------------\n"
 	help += "# Description of the command:\nHow to use the command\n \n"
@@ -71,7 +73,7 @@ func Test_Help_Command(t *testing.T) {
 
 	tests := []TestInput{
 		{
-			Description: "Send valid help command and receive help message",
+			Description: "Send help command and receive help message",
 			Input:       "help\n",
 			Expected:    help,
 		},
@@ -85,6 +87,29 @@ func Test_Help_Command(t *testing.T) {
 		// 	Input:       "helpp\n",
 		// 	Expected:    "Blabla\n",
 		// },
+	}
+	testClient.Run(tests, t)
+}
+
+func Test_Close_Command(t *testing.T) {
+	testClient := TestClient{Config: testingConfig}
+
+	tests := []TestInput{
+		{
+			Description: "Send invalid help command and receive error message",
+			Input:       "closee 1 johndoe 1234\n",
+			Expected:    "Error: Invalid command. Type 'help' for a list of commands.\n",
+		},
+		{
+			Description: "Send close command and receive confirmation message",
+			Input:       "close 1 johndoe 1234\n",
+			Expected:    "Event with id 1 is closed.\n",
+		},
+		{
+			Description: "Send close command on closed event and receive error message",
+			Input:       "close 1 johndoe 1234\n",
+			Expected:    "Error: Event is already closed.\n",
+		},
 	}
 	testClient.Run(tests, t)
 }
