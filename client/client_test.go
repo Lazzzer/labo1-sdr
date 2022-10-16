@@ -10,8 +10,8 @@ import (
 
 type TestInput struct {
 	Description string
-	Input       []byte
-	Expected    []byte
+	Input       string
+	Expected    string
 }
 
 type TestClient struct {
@@ -29,14 +29,14 @@ func (tc *TestClient) Run(tests []TestInput, t *testing.T) {
 	defer conn.Close()
 
 	for _, test := range tests {
-		if _, err := conn.Write(test.Input); err != nil {
+		if _, err := conn.Write([]byte(test.Input)); err != nil {
 			t.Error("Error: could not write to server")
 		}
 
 		out := make([]byte, 1024)
 		if _, err := conn.Read(out); err == nil {
-			if string(out) != string(test.Expected) {
-				t.Error("\nError for test: ", test.Description, "\n\nResponse did match expected output:\n>> Expected\n", string(test.Expected), "\n>> Got\n", string(out))
+			if string(out[:len(test.Expected)]) != test.Expected {
+				t.Error("\nError for test: ", test.Description, "\n\nResponse did match expected output:\n>> Expected\n", test.Expected, "\n>> Got\n", string(out))
 			}
 		} else {
 			t.Error("Error: could not read from connection")
@@ -50,8 +50,6 @@ func (tc *TestClient) Run(tests []TestInput, t *testing.T) {
 
 func TestClient_Help_Command(t *testing.T) {
 	testClient := TestClient{Config: utils.Config{Host: "localhost", Port: 8080}}
-	buffValid := make([]byte, 1024)
-	buffInvalid := make([]byte, 1024)
 
 	var help = "---------------------------------------------------------\n"
 	help += "# Description of the command:\nHow to use the command\n \n"
@@ -64,25 +62,23 @@ func TestClient_Help_Command(t *testing.T) {
 	help += "# Show all volunteers from an event:\njobRepartition <idEvent>\n \n"
 	help += "# Quit the program:\nquit\n"
 	help += "---------------------------------------------------------\n"
-	copy(buffValid, []byte(help))
-
-	correctCommand := TestInput{
-		Description: "Send valid help command and receive help message",
-		Input:       []byte("help\n"),
-		Expected:    buffValid,
-	}
-
-	copy(buffInvalid, []byte("Error: Invalid command. Type 'help' for a list of commands.\n"))
-
-	badCommand := TestInput{
-		Description: "Send invalid help command and receive error message",
-		Input:       []byte("helpp\n"),
-		Expected:    buffInvalid,
-	}
 
 	tests := []TestInput{
-		correctCommand,
-		badCommand,
+		{
+			Description: "Send valid help command and receive help message",
+			Input:       "help\n",
+			Expected:    help,
+		},
+		{
+			Description: "Send invalid help command and receive error message",
+			Input:       "helpp\n",
+			Expected:    "Error: Invalid command. Type 'help' for a list of commands.\n",
+		},
+		// {
+		// 	Description: "Failling test",
+		// 	Input:       "helpp\n",
+		// 	Expected:    "Blabla\n",
+		// },
 	}
 
 	testClient.Run(tests, t)
