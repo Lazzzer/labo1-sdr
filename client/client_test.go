@@ -253,7 +253,7 @@ func Test_Commands_Concurrently(t *testing.T) {
 			Expected:    help,
 		},
 		{
-			Description: "Send invalid help command and receive error message",
+			Description: "Send show command and receive message",
 			Input:       "showAll\n",
 			Expected:    showAll,
 		},

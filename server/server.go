@@ -75,40 +75,17 @@ func (s *Server) debug(entity string, debug, start bool) {
 // Helpers
 func (s *Server) verifyUser(username, password string) (utils.User, bool) {
 	users := getEntitiesFromChannel(s.uChan, s)
+	defer loadEntitiesToChannel(s.uChan, users, s)
 
 	var returnedUser utils.User
-	ok := false
 
 	for _, user := range users {
 		if user.Username == username && user.Password == password {
-			returnedUser = user
-			ok = true
-			break
+			return user, true
 		}
 	}
 
-	loadEntitiesToChannel(s.uChan, users, s)
-
-	return returnedUser, ok
-}
-
-func (s *Server) getEventById(id int) (utils.Event, bool) {
-	events := getEntitiesFromChannel(s.eChan, s)
-
-	var returnedEvent utils.Event
-	ok := false
-
-	for _, event := range events {
-		if event.Id == id {
-			returnedEvent = event
-			ok = true
-			break
-		}
-	}
-
-	loadEntitiesToChannel(s.eChan, events, s)
-
-	return returnedEvent, ok
+	return returnedUser, false
 }
 
 func (s *Server) removeUserInJob(idUser int, job *utils.Job) {
@@ -121,80 +98,69 @@ func (s *Server) removeUserInJob(idUser int, job *utils.Job) {
 	}
 }
 
-func (s *Server) addUserToJob(event *utils.Event, idJob, idUser int) (string, bool) {
+func (s *Server) addUserToJob(idEvent, idJob, idUser int) (string, bool) {
 	jobs := getEntitiesFromChannel(s.jChan, s)
+	defer loadEntitiesToChannel(s.jChan, jobs, s)
 
-	ok := false
-	errMsg := ""
+	job, ok := jobs[idJob]
 
-	job, okJob := jobs[idJob]
-
-	if okJob {
-		if job.EventId != event.Id {
-			errMsg = "Error: Given event id does not match id in job.\n"
+	if ok {
+		// Différentes vérifications selon le cahier des charges avec les messages d'erreur correspondants
+		if job.EventId != idEvent {
+			return "Error: Given event id does not match id in job.\n", false
 		} else if job.CreatorId == idUser {
-			errMsg = "Error: Creator of the event cannot register for a job.\n"
+			return "Error: Creator of the event cannot register for a job.\n", false
 		} else if len(job.VolunteerIds) == job.NbVolunteers {
-			errMsg = "Error: Job is already full.\n"
+			return "Error: Job is already full.\n", false
 		} else {
-			ok = true
 			for _, id := range job.VolunteerIds {
 				if id == idUser {
-					ok = false
-					errMsg = "Error: User is already registered in this job.\n"
-					break
+					return "Error: User is already registered in this job.\n", false
 				}
 			}
 		}
 
-		if ok {
-			// Suppression de l'utilisateur dans un job de la manifestation
-			for _, exploredJob := range jobs {
-				if exploredJob.EventId == event.Id {
-					s.removeUserInJob(idUser, &exploredJob)
-					jobs[exploredJob.Id] = exploredJob
-				}
+		// Suppression de l'utilisateur dans un job de la manifestation
+		for _, exploredJob := range jobs {
+			if exploredJob.EventId == idEvent {
+				s.removeUserInJob(idUser, &exploredJob)
+				jobs[exploredJob.Id] = exploredJob
 			}
-			job.VolunteerIds = append(job.VolunteerIds, idUser)
-			jobs[idJob] = job
 		}
-
+		// Ajout de l'utilisateur dans son nouveau job
+		job.VolunteerIds = append(job.VolunteerIds, idUser)
+		jobs[idJob] = job
 	} else {
-		errMsg = "Error: Job not found with given id.\n"
+		return "Error: Job not found with given id.\n", false
 	}
 
-	loadEntitiesToChannel(s.jChan, jobs, s)
-
-	return errMsg, ok
+	return "", true
 }
 
 func (s *Server) closeEvent(idEvent, idUser int) (string, bool) {
 	events := getEntitiesFromChannel(s.eChan, s)
+	defer loadEntitiesToChannel(s.eChan, events, s)
 
-	errMsg := ""
-	ok := false
 	event, okEvent := events[idEvent]
 
 	if !okEvent {
-		errMsg = "Error: Event not found with given id.\n"
+		return "Error: Event not found with given id.\n", false
 	} else if event.CreatorId != idUser {
-		errMsg = "Error: Only the creator of the event can close it.\n"
+		return "Error: Only the creator of the event can close it.\n", false
 	} else if event.Closed {
-		errMsg = "Error: Event is already closed.\n"
+		return "Error: Event is already closed.\n", false
 	} else {
 		event.Closed = true
 		events[idEvent] = event
-		ok = true
 	}
 
-	loadEntitiesToChannel(s.eChan, events, s)
-
-	return errMsg, ok
+	return "", true
 }
 
 func (s *Server) checkNbArgs(args []string, command *types.Command, optional bool) (string, bool) {
 	msg := "Error: Invalid number of arguments. Type 'help' for more information.\n"
 	if optional {
+		// TODO
 		if len(args) < command.MinArgs || len(args)%command.MinOptArgs != 1 {
 			return msg, false
 		}
@@ -331,7 +297,11 @@ func (s *Server) register(args []string) string {
 		return "Error: Access denied.\n"
 	}
 
-	event, okEvent := s.getEventById(idEvent)
+	events := getEntitiesFromChannel(s.eChan, s)
+	defer loadEntitiesToChannel(s.eChan, events, s)
+
+	event, okEvent := events[idEvent]
+
 	if !okEvent {
 		return "Error: Event not found by this id.\n"
 	} else if event.Closed {
@@ -342,7 +312,7 @@ func (s *Server) register(args []string) string {
 		}
 	}
 
-	msg, okJob := s.addUserToJob(&event, idJob, user.Id)
+	msg, okJob := s.addUserToJob(idEvent, idJob, user.Id)
 
 	if !okJob {
 		return msg
@@ -357,10 +327,9 @@ func (s *Server) showEvents(args []string) string {
 	}
 
 	events := getEntitiesFromChannel(s.eChan, s)
+	defer loadEntitiesToChannel(s.eChan, events, s)
 
 	response := "Events:\n"
-
-	loadEntitiesToChannel(s.eChan, events, s)
 
 	for _, event := range events {
 		response += event.Name + "\n"
