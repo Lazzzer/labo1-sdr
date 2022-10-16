@@ -391,7 +391,7 @@ func (s *Server) processCommand(command string) (string, bool) {
 	args = args[1:]
 	end := false
 
-	s.printDebug("\n---------- START COMMAND ----------")
+	// s.printDebug("\n---------- START COMMAND ----------")
 
 	switch name {
 	case utils.HELP.Name:
@@ -414,7 +414,7 @@ func (s *Server) processCommand(command string) (string, bool) {
 		response = "Error: Invalid command. Type 'help' for a list of commands.\n"
 	}
 
-	s.printDebug("\n---------- END COMMAND ----------")
+	// s.printDebug("\n---------- END COMMAND ----------")
 
 	return response, end
 }

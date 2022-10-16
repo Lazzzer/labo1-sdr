@@ -22,7 +22,7 @@ type TestClient struct {
 }
 
 func init() {
-	server := server.Server{Config: utils.Config{Port: testingConfig.Port, Debug: true}}
+	server := server.Server{Config: utils.Config{Port: testingConfig.Port, Debug: false}}
 	go server.Run()
 }
 
@@ -91,24 +91,38 @@ func Test_Help_Command(t *testing.T) {
 	testClient.Run(tests, t)
 }
 
+func Test_Create_Command(t *testing.T) {
+	// TODO
+}
+
 func Test_Close_Command(t *testing.T) {
 	testClient := TestClient{Config: testingConfig}
 
 	tests := []TestInput{
 		{
-			Description: "Send invalid help command and receive error message",
-			Input:       "closee 1 johndoe 1234\n",
-			Expected:    "Error: Invalid command. Type 'help' for a list of commands.\n",
+			Description: "Send close command and receive confirmation message",
+			Input:       "close 2 john root\n",
+			Expected:    "Event with id 2 is closed.\n",
 		},
 		{
-			Description: "Send close command and receive confirmation message",
-			Input:       "close 1 johndoe 1234\n",
-			Expected:    "Event with id 1 is closed.\n",
+			Description: "Send close command with bad credentials and receive receive error message",
+			Input:       "close 2 john rooot\n",
+			Expected:    "Error: Access denied.\n",
 		},
 		{
 			Description: "Send close command on closed event and receive error message",
-			Input:       "close 1 johndoe 1234\n",
+			Input:       "close 2 john root\n",
 			Expected:    "Error: Event is already closed.\n",
+		},
+		{
+			Description: "Send close command on event not owned by the user and receive error message",
+			Input:       "close 2 claude root\n",
+			Expected:    "Error: Only the creator of the event can close it.\n",
+		},
+		{
+			Description: "Send invalid close command and receive error message",
+			Input:       "closee 1 claude root\n",
+			Expected:    "Error: Invalid command. Type 'help' for a list of commands.\n",
 		},
 	}
 	testClient.Run(tests, t)
