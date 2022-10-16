@@ -101,17 +101,22 @@ func Test_Close_Command(t *testing.T) {
 	tests := []TestInput{
 		{
 			Description: "Send close command and receive confirmation message",
-			Input:       "close 2 john root\n",
-			Expected:    "Event with id 2 is closed.\n",
+			Input:       "close 3 jane root\n",
+			Expected:    "Event with id 3 is closed.\n",
+		},
+		{
+			Description: "Send close command with bad id and receive error message",
+			Input:       "close bad lazar root\n",
+			Expected:    "Error: event id must be integer.\n",
 		},
 		{
 			Description: "Send close command with bad credentials and receive receive error message",
-			Input:       "close 2 john rooot\n",
+			Input:       "close 3 jane rooot\n",
 			Expected:    "Error: Access denied.\n",
 		},
 		{
 			Description: "Send close command on closed event and receive error message",
-			Input:       "close 2 john root\n",
+			Input:       "close 1 claude root\n",
 			Expected:    "Error: Event is already closed.\n",
 		},
 		{
@@ -122,6 +127,69 @@ func Test_Close_Command(t *testing.T) {
 		{
 			Description: "Send invalid close command and receive error message",
 			Input:       "closee 1 claude root\n",
+			Expected:    "Error: Invalid command. Type 'help' for a list of commands.\n",
+		},
+	}
+	testClient.Run(tests, t)
+}
+
+func Test_Register_Command(t *testing.T) {
+	testClient := TestClient{Config: testingConfig}
+
+	tests := []TestInput{
+		{
+			Description: "Send register command and receive confirmation message",
+			Input:       "register 2 4 lazar root\n",
+			Expected:    "User lazar registered to job with id 4 in event Baleinev 2023.\n",
+		},
+		{
+			Description: "Send register command for a user in another job of the same event and receive confirmation message",
+			Input:       "register 2 6 lazar root\n",
+			Expected:    "User lazar registered to job with id 6 in event Baleinev 2023.\n",
+		},
+		{
+			Description: "Send register command with bad ids and receive error message",
+			Input:       "register bad id lazar root\n",
+			Expected:    "Error: Ids must be integers.\n",
+		},
+		{
+			Description: "Send register command for inexistant event and receive error message",
+			Input:       "register 1000 1 valentin root\n",
+			Expected:    "Error: Event not found by this id.\n",
+		},
+		{
+			Description: "Send register command for inexistant job for the given event and receive error message",
+			Input:       "register 2 1000 valentin root\n",
+			Expected:    "Error: Given event id does not match id in job.\n",
+		},
+		{
+			Description: "Send register command with bad credentials and receive receive error message",
+			Input:       "register 2 4 jane rooot\n",
+			Expected:    "Error: Access denied.\n",
+		},
+		{
+			Description: "Send register command with user already in job and receive error message",
+			Input:       "register 2 4 valentin root\n",
+			Expected:    "Error: User is already registered in this job.\n",
+		},
+		{
+			Description: "Send register command for job already full and receive error message",
+			Input:       "register 2 5 claude root\n",
+			Expected:    "Error: Job is already full.\n",
+		},
+		{
+			Description: "Send register command as creator of event and receive error message",
+			Input:       "register 2 4 john root\n",
+			Expected:    "Error: Creator of the event cannot register for a job.\n",
+		},
+		{
+			Description: "Send register command on closed event and receive error message",
+			Input:       "register 1 1 lazar root\n",
+			Expected:    "Error: Event is closed.\n",
+		},
+		{
+			Description: "Send invalid register command and receive error message",
+			Input:       "registeer bad input\n",
 			Expected:    "Error: Invalid command. Type 'help' for a list of commands.\n",
 		},
 	}
