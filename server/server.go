@@ -160,7 +160,6 @@ func (s *Server) closeEvent(idEvent, idUser int) (string, bool) {
 func (s *Server) checkNbArgs(args []string, command *types.Command, optional bool) (string, bool) {
 	msg := "Error: Invalid number of arguments. Type 'help' for more information.\n"
 	if optional {
-		// TODO
 		if len(args) < command.MinArgs || len(args)%command.MinOptArgs != 1 {
 			return msg, false
 		}
@@ -194,59 +193,61 @@ func (s *Server) showHelp(args []string) string {
 	return help
 }
 
-func (s *Server) createEvent(command []string) string {
-	// if len(command) < 5 || len(command)%2 != 1 {
-	// 	return "TODO"
-	// }
+func (s *Server) createEvent(args []string) string {
 
-	// var nbVolunteersPerJob []int
-	// var jobsName []string
-	// for i := 1; i < len(command)-2; i++ {
-	// 	if i%2 == 0 {
-	// 		if nbVolunteer, err := strconv.Atoi(command[i]); err != nil || nbVolunteer < 0 {
-	// 			return "The number of volunteers must be an positive integer."
-	// 		} else {
-	// 			nbVolunteersPerJob = append(nbVolunteersPerJob, nbVolunteer)
-	// 		}
-	// 	} else {
-	// 		jobsName = append(jobsName, command[i])
-	// 	}
-	// }
+	if msg, ok := s.checkNbArgs(args, &utils.CREATE, true); !ok {
+		return msg
+	}
 
-	// username := command[len(command)-2]
-	// password := command[len(command)-1]
+	username := args[len(args)-2]
+	password := args[len(args)-1]
 
-	// user, okUser := s.verifyUser(username, password)
+	user, okUser := s.verifyUser(username, password)
 
-	// if !okUser {
-	// 	return "Error: Access denied."
-	// }
+	if !okUser {
+		return "Error: Access denied."
+	}
 
-	// jobs := <-s.jChan
-	// events := <-s.eChan
-	// eventId := len(events) + 1
-	// currentJobId := len(jobs) + 1
-	// allJobsId := []int{}
-	// for i := 0; i < len(jobsName); i++ {
-	// 	jobs = append(jobs, utils.Job{
-	// 		Id:           currentJobId,
-	// 		Name:         jobsName[i],
-	// 		CreatorId:    nbVolunteersPerJob[i],
-	// 		EventId:      user.Id,
-	// 		NbVolunteers: eventId,
-	// 		VolunteerIds: []int{}})
-	// 	allJobsId = append(allJobsId, currentJobId)
-	// 	currentJobId++
-	// }
+	var nbVolunteersPerJob []int
+	var jobsName []string
 
-	// s.jChan <- jobs
+	for i := 1; i < len(args)-utils.CREATE.MinOptArgs; i++ {
+		if i%utils.CREATE.MinOptArgs == 0 {
+			if nbVolunteer, err := strconv.Atoi(args[i]); err != nil || nbVolunteer < 0 {
+				return "Error: The number of volunteers must be an positive integer."
+			} else {
+				nbVolunteersPerJob = append(nbVolunteersPerJob, nbVolunteer)
+			}
+		} else {
+			jobsName = append(jobsName, args[i])
+		}
+	}
 
-	// newEvent := utils.Event{Id: eventId, Name: command[0], CreatorId: user.Id, JobIds: allJobsId}
-	// events = append(events, newEvent)
+	jobs := getEntitiesFromChannel(s.jChan, s)
+	defer loadEntitiesToChannel(s.jChan, jobs, s)
 
-	// s.eChan <- events
+	events := getEntitiesFromChannel(s.eChan, s)
+	defer loadEntitiesToChannel(s.eChan, events, s)
 
-	return "Event created"
+	eventId := len(events) + 1
+	currentJobId := len(jobs) + 1
+	allJobsId := []int{}
+	for i := 0; i < len(jobsName); i++ {
+		jobs[currentJobId] = utils.Job{
+			Id:           currentJobId,
+			Name:         jobsName[i],
+			CreatorId:    nbVolunteersPerJob[i],
+			EventId:      user.Id,
+			NbVolunteers: eventId,
+			VolunteerIds: []int{}}
+		allJobsId = append(allJobsId, currentJobId)
+		currentJobId++
+	}
+
+	newEvent := utils.Event{Id: eventId, Name: args[0], CreatorId: user.Id, JobIds: allJobsId}
+	events[eventId] = newEvent
+
+	return "Event with id " + strconv.Itoa(eventId) + " and " + strconv.Itoa(len(allJobsId)) + " job(s) " + " created\n"
 }
 
 func (s *Server) close(args []string) string {
