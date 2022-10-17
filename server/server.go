@@ -273,7 +273,7 @@ func (s *Server) createEvent(args []string) string {
 	newEvent := utils.Event{Name: args[0], CreatorId: userId, JobIds: allJobsId}
 	events[eventId] = newEvent
 
-	return utils.MESSAGE.WrapSuccess("Event with id " + strconv.Itoa(eventId) + " and " + strconv.Itoa(len(allJobsId)) + " job(s) " + " created\n")
+	return utils.MESSAGE.WrapSuccess("Event #" + strconv.Itoa(eventId) + " " + newEvent.Name + " and " + strconv.Itoa(len(allJobsId)) + " job(s)" + " created\n")
 }
 
 func (s *Server) close(args []string) string {
@@ -301,7 +301,7 @@ func (s *Server) close(args []string) string {
 		return errMsg
 	}
 
-	return utils.MESSAGE.WrapSuccess("Event with id " + strconv.Itoa(idEvent) + " is closed.\n")
+	return utils.MESSAGE.WrapSuccess("Event #" + strconv.Itoa(idEvent) + " is closed.\n")
 }
 
 func (s *Server) register(args []string) string {
@@ -344,7 +344,7 @@ func (s *Server) register(args []string) string {
 	if !okJob {
 		return msg
 	}
-	return utils.MESSAGE.WrapSuccess("User registered to job with id " + strconv.Itoa(idJob) + " in event " + event.Name + ".\n")
+	return utils.MESSAGE.WrapSuccess("User registered in job #" + strconv.Itoa(idJob) + " for Event #" + strconv.Itoa(idEvent) + " " + event.Name + ".\n")
 }
 
 // TODO: Présentation clean
