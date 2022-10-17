@@ -78,7 +78,10 @@ func (c *Client) Run() {
 	defer conn.Close()
 
 	go func() {
-		io.Copy(os.Stdout, conn) // Lecture des réponses du serveur
+		_, errFrom := io.Copy(os.Stdout, conn) // Lecture des réponses du serveur
+		if errFrom != nil {
+			os.Exit(1)
+		}
 	}()
 
 	reader := bufio.NewReader(os.Stdin)
