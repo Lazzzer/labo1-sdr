@@ -93,11 +93,6 @@ func Test_Help_Command(t *testing.T) {
 			Input:       "helpp\n",
 			Expected:    utils.MESSAGE.Error.InvalidCommand,
 		},
-		// {
-		// 	Description: "Failling test",
-		// 	Input:       "helpp\n",
-		// 	Expected:    "Blabla\n",
-		// },
 	}
 	testClient.Run(tests, t)
 }
@@ -113,7 +108,7 @@ func Test_Close_Command(t *testing.T) {
 		{
 			Description: "Send close command and receive confirmation message",
 			Input:       "close 3 jane root\n",
-			Expected:    "Event with id 3 is closed.\n",
+			Expected:    utils.MESSAGE.WrapSuccess("Event with id 3 is closed.\n"),
 		},
 		{
 			Description: "Send close command with bad id and receive error message",
@@ -151,17 +146,17 @@ func Test_Register_Command(t *testing.T) {
 		{
 			Description: "Send register command and receive confirmation message",
 			Input:       "register 2 4 lazar root\n",
-			Expected:    "User registered to job with id 4 in event Baleinev 2023.\n",
+			Expected:    utils.MESSAGE.WrapSuccess("User registered to job with id 4 in event Baleinev 2023.\n"),
 		},
 		{
 			Description: "Send register command for a user in another job of the same event and receive confirmation message",
 			Input:       "register 2 6 lazar root\n",
-			Expected:    "User registered to job with id 6 in event Baleinev 2023.\n",
+			Expected:    utils.MESSAGE.WrapSuccess("User registered to job with id 6 in event Baleinev 2023.\n"),
 		},
 		{
 			Description: "Send register command for a user who left a job for another and came back to the job in the same event and receive confirmation message",
 			Input:       "register 2 4 lazar root\n",
-			Expected:    "User registered to job with id 4 in event Baleinev 2023.\n",
+			Expected:    utils.MESSAGE.WrapSuccess("User registered to job with id 4 in event Baleinev 2023.\n"),
 		},
 		{
 			Description: "Send register command with bad ids and receive error message",

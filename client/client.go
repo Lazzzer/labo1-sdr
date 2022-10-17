@@ -20,7 +20,10 @@ type Client struct {
 }
 
 func (c *Client) askCredentials() (string, error) {
-	fmt.Println("Enter Username: ")
+	fmt.Println(utils.MESSAGE.LoginStart)
+	defer fmt.Println(utils.MESSAGE.LoginEnd)
+
+	fmt.Print(utils.BOLD + "Enter Username: " + utils.RESET)
 	username, errUsername := bufio.NewReader(os.Stdin).ReadString('\n')
 	usernameArr := strings.Fields(username)
 
@@ -29,7 +32,7 @@ func (c *Client) askCredentials() (string, error) {
 	}
 	username = usernameArr[0]
 
-	fmt.Println("Enter Password: ")
+	fmt.Print(utils.BOLD + "Enter Password: " + utils.RESET)
 	bytePassword, errPassword := term.ReadPassword(int(syscall.Stdin))
 
 	if errPassword != nil {
@@ -69,21 +72,7 @@ func (c *Client) Run() {
 	if err != nil {
 		log.Fatal(err)
 	} else {
-
-		title := utils.YELLOW
-		title += "  _____                 _     __  __                                   \n"
-		title += " | ____|_   _____ _ __ | |_  |  \\/  | __ _ _ __   __ _  __ _  ___ _ __ \n"
-		title += " |  _| \\ \\ / / _ \\ '_ \\| __| | |\\/| |/ _` | '_ \\ / _` |/ _` |/ _ \\ '__|\n"
-		title += " | |___ \\ V /  __/ | | | |_  | |  | | (_| | | | | (_| | (_| |  __/ |   \n"
-		title += " |_____| \\_/ \\___|_| |_|\\__| |_|  |_|\\__,_|_| |_|\\__,_|\\__, |\\___|_|   \n"
-		title += "                                                       |___/           "
-		title += utils.RESET
-
-		fmt.Println(title)
-		fmt.Println("Labo 1 SDR - Jonathan Friedli & Lazar Pavicevic")
-		fmt.Println("\nWelcome! Please enter a command.")
-		fmt.Println("💡" + utils.YELLOW + "Type 'help' for a list of available commands." + utils.RESET)
-		fmt.Println()
+		fmt.Println(utils.MESSAGE.Title)
 	}
 
 	defer conn.Close()
@@ -98,14 +87,14 @@ func (c *Client) Run() {
 		processedInput, err := c.processInput(input)
 
 		if err != nil {
-			fmt.Println("Error: Invalid input. Type 'help' for a list of commands.")
+			fmt.Print(utils.MESSAGE.Error.InvalidCommand)
 			continue
 		}
 
 		io.Copy(conn, strings.NewReader(processedInput+"\n")) // Passage de l'input traité au serveur
 
 		if processedInput == utils.QUIT.Name {
-			fmt.Println("Goodbye!")
+			fmt.Println(utils.MESSAGE.Goodbye)
 			break
 		}
 	}

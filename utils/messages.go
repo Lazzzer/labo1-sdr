@@ -1,37 +1,15 @@
 package utils
 
-var MESSAGE = struct {
-	Success success
-	Error   error
-	Help    string
-}{
-	Success: success{
-		Created: "Job created successfully.\n",
-	},
-	Error: error{
-		InvalidCommand:      wrapError("Invalid command. Type 'help' for a list of commands.\n"),
-		InvalidNbArgs:       wrapError("Invalid number of arguments. Type 'help' for more information.\n"),
-		AccessDenied:        wrapError("Access denied.\n"),
-		MustBeInteger:       wrapError("Id must be an integer.\n"),
-		EventNotFound:       wrapError("Event not found with given id.\n"),
-		EventClosed:         wrapError("Event is closed.\n"),
-		JobNotFound:         wrapError("Job not found with given id.\n"),
-		NotCreator:          wrapError("Only the creator of the event can close it.\n"),
-		AlreadyClosed:       wrapError("Event is already closed.\n"),
-		IdEventNotMatchJob:  wrapError("Given event id does not match id in job.\n"),
-		CreatorRegister:     wrapError("Creator of the event cannot register for a job.\n"),
-		JobFull:             wrapError("Job is already full.\n"),
-		AlreadyRegistered:   wrapError("User is already registered in this job.\n"),
-		NbVolunteersInteger: wrapError("Number of volunteers must be a positive integer.\n"),
-	},
-	Help: help,
+type Message struct {
+	Error      errorMessage
+	Title      string
+	Goodbye    string
+	Help       string
+	LoginStart string
+	LoginEnd   string
 }
 
-type success = struct {
-	Created string
-}
-
-type error = struct {
+type errorMessage = struct {
 	InvalidCommand      string
 	InvalidNbArgs       string
 	AccessDenied        string
@@ -47,6 +25,64 @@ type error = struct {
 	AlreadyRegistered   string
 	NbVolunteersInteger string
 }
+
+var MESSAGE = Message{
+	Error: errorMessage{
+		InvalidCommand:      wrapError("Invalid command. Type 'help' for a list of commands.\n"),
+		InvalidNbArgs:       wrapError("Invalid number of arguments. Type 'help' for more information.\n"),
+		AccessDenied:        wrapError("Access denied.\n"),
+		MustBeInteger:       wrapError("Id must be an integer.\n"),
+		EventNotFound:       wrapError("Event not found with given id.\n"),
+		EventClosed:         wrapError("Event is closed.\n"),
+		JobNotFound:         wrapError("Job not found with given id.\n"),
+		NotCreator:          wrapError("Only the creator of the event can close it.\n"),
+		AlreadyClosed:       wrapError("Event is already closed.\n"),
+		IdEventNotMatchJob:  wrapError("Given event id does not match id in job.\n"),
+		CreatorRegister:     wrapError("Creator of the event cannot register for a job.\n"),
+		JobFull:             wrapError("Job is already full.\n"),
+		AlreadyRegistered:   wrapError("User is already registered in this job.\n"),
+		NbVolunteersInteger: wrapError("Number of volunteers must be a positive integer.\n"),
+	},
+	Title:      title,
+	Goodbye:    goodbye,
+	Help:       help,
+	LoginStart: loginStart,
+	LoginEnd:   loginEnd,
+}
+
+func (m *Message) WrapSuccess(message string) string {
+	success := GREEN + "\n===================== ✅ SUCCESS ✅ ==========================\n\n" + RESET
+	success += message + "\n"
+	success += GREEN + "==============================================================" + RESET + "\n\n"
+	return success
+}
+
+func wrapError(message string) string {
+	err := RED + "\n===================== ❌ ERROR ❌ ============================\n\n" + RESET
+	err += message + "\n"
+	err += RED + "==============================================================" + RESET + "\n\n"
+
+	return err
+}
+
+var title = BOLD + YELLOW +
+	"  _____                 _     __  __                                   \n" +
+	" | ____|_   _____ _ __ | |_  |  \\/  | __ _ _ __   __ _  __ _  ___ _ __ \n" +
+	" |  _| \\ \\ / / _ \\ '_ \\| __| | |\\/| |/ _` | '_ \\ / _` |/ _` |/ _ \\ '__|\n" +
+	" | |___ \\ V /  __/ | | | |_  | |  | | (_| | | | | (_| | (_| |  __/ |   \n" +
+	" |_____| \\_/ \\___|_| |_|\\__| |_|  |_|\\__,_|_| |_|\\__,_|\\__, |\\___|_|   \n" +
+	"                                                       |___/           " + RESET + "\n" +
+	"Labo 1 SDR - Jonathan Friedli & Lazar Pavicevic\n\n" +
+	"Welcome! Please enter a command.\n" +
+	"💡" + YELLOW + "Type 'help' for a list of available commands." + RESET + "\n"
+
+var goodbye = "\nThank you for using Event Manager!\n" + BOLD + YELLOW +
+	"   ______                __   __               __\n" +
+	"  / ____/___  ____  ____/ /  / /_  __  _____  / /\n" +
+	" / / __/ __ \\/ __ \\/ __  /  / __ \\/ / / / _ \\/ / \n" +
+	"/ /_/ / /_/ / /_/ / /_/ /  / /_/ / /_/ /  __/_/  \n" +
+	"\\____/\\____/\\____/\\__,_/  /_.___/\\__, /\\___(_)   \n" +
+	"                                /____/           " + RESET + "\n"
 
 var help = YELLOW +
 	"\n===================== 💡 HELP 💡 =============================\n\n" + RESET +
@@ -69,12 +105,10 @@ var help = YELLOW +
 	GREEN + "jobs" + RESET + " <idEvent>\n\n" +
 	"# Quit the program\n" +
 	GREEN + "quit" + RESET + "\n\n" +
-	YELLOW + "=============================================================" + RESET + "\n\n"
+	YELLOW + "==============================================================" + RESET + "\n\n"
 
-func wrapError(message string) string {
-	err := RED + "\n===================== ❌ ERROR ❌ ============================\n\n" + RESET
-	err += message + "\n"
-	err += RED + "==============================================================" + RESET + "\n\n"
+var loginStart = ORANGE +
+	"\n====================== 🔑 LOGIN 🔑 ===========================" + RESET + "\n"
 
-	return err
-}
+var loginEnd = ORANGE +
+	"\n\n==============================================================" + RESET
