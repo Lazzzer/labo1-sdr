@@ -166,47 +166,47 @@ func Test_Register_Command(t *testing.T) {
 		{
 			Description: "Send register command with bad ids and receive error message",
 			Input:       "register bad id lazar root\n",
-			Expected:    "Error: Ids must be integers.\n",
+			Expected:    utils.MESSAGE.Error.MustBeInteger,
 		},
 		{
 			Description: "Send register command for inexistant event and receive error message",
 			Input:       "register 1000 1 valentin root\n",
-			Expected:    "Error: Event not found by this id.\n",
+			Expected:    utils.MESSAGE.Error.EventNotFound,
 		},
 		{
 			Description: "Send register command for inexistant job for the given event and receive error message",
 			Input:       "register 2 1000 valentin root\n",
-			Expected:    "Error: Job not found with given id.\n",
+			Expected:    utils.MESSAGE.Error.JobNotFound,
 		},
 		{
 			Description: "Send register command with bad credentials and receive receive error message",
 			Input:       "register 2 4 jane rooot\n",
-			Expected:    "Error: Access denied.\n",
+			Expected:    utils.MESSAGE.Error.AccessDenied,
 		},
 		{
 			Description: "Send register command with user already in job and receive error message",
 			Input:       "register 2 4 valentin root\n",
-			Expected:    "Error: User is already registered in this job.\n",
+			Expected:    utils.MESSAGE.Error.AlreadyRegistered,
 		},
 		{
 			Description: "Send register command for job already full and receive error message",
 			Input:       "register 2 5 claude root\n",
-			Expected:    "Error: Job is already full.\n",
+			Expected:    utils.MESSAGE.Error.JobFull,
 		},
 		{
 			Description: "Send register command as creator of event and receive error message",
 			Input:       "register 2 4 john root\n",
-			Expected:    "Error: Creator of the event cannot register for a job.\n",
+			Expected:    utils.MESSAGE.Error.CreatorRegister,
 		},
 		{
 			Description: "Send register command on closed event and receive error message",
 			Input:       "register 1 1 lazar root\n",
-			Expected:    "Error: Event is closed.\n",
+			Expected:    utils.MESSAGE.Error.EventClosed,
 		},
 		{
 			Description: "Send invalid register command and receive error message",
 			Input:       "registeer bad input\n",
-			Expected:    "Error: Invalid command. Type 'help' for a list of commands.\n",
+			Expected:    utils.MESSAGE.Error.InvalidCommand,
 		},
 	}
 	testClient.Run(tests, t)
