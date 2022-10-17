@@ -91,7 +91,7 @@ func Test_Help_Command(t *testing.T) {
 		{
 			Description: "Send invalid help command and receive error message",
 			Input:       "helpp\n",
-			Expected:    "Error: Invalid command. Type 'help' for a list of commands.\n",
+			Expected:    utils.MESSAGE.Error.InvalidCommand,
 		},
 		// {
 		// 	Description: "Failling test",
@@ -118,27 +118,27 @@ func Test_Close_Command(t *testing.T) {
 		{
 			Description: "Send close command with bad id and receive error message",
 			Input:       "close bad lazar root\n",
-			Expected:    "Error: event id must be integer.\n",
+			Expected:    utils.MESSAGE.Error.MustBeInteger,
 		},
 		{
 			Description: "Send close command with bad credentials and receive receive error message",
 			Input:       "close 3 jane rooot\n",
-			Expected:    "Error: Access denied.\n",
+			Expected:    utils.MESSAGE.Error.AccessDenied,
 		},
 		{
 			Description: "Send close command on closed event and receive error message",
 			Input:       "close 1 claude root\n",
-			Expected:    "Error: Event is already closed.\n",
+			Expected:    utils.MESSAGE.Error.AlreadyClosed,
 		},
 		{
 			Description: "Send close command on event not owned by the user and receive error message",
 			Input:       "close 2 claude root\n",
-			Expected:    "Error: Only the creator of the event can close it.\n",
+			Expected:    utils.MESSAGE.Error.NotCreator,
 		},
 		{
 			Description: "Send invalid close command and receive error message",
 			Input:       "closee 1 claude root\n",
-			Expected:    "Error: Invalid command. Type 'help' for a list of commands.\n",
+			Expected:    utils.MESSAGE.Error.InvalidCommand,
 		},
 	}
 	testClient.Run(tests, t)

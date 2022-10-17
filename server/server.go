@@ -105,15 +105,15 @@ func (s *Server) addUserToJob(idEvent, idJob, idUser int) (string, bool) {
 	if ok {
 		// Différentes vérifications selon le cahier des charges avec les messages d'erreur correspondants
 		if job.EventId != idEvent {
-			return "Error: Given event id does not match id in job.\n", false
+			return utils.MESSAGE.Error.IdEventNotMatchJob, false
 		} else if job.CreatorId == idUser {
-			return "Error: Creator of the event cannot register for a job.\n", false
+			return utils.MESSAGE.Error.CreatorRegister, false
 		} else if len(job.VolunteerIds) == job.NbVolunteers {
-			return "Error: Job is already full.\n", false
+			return utils.MESSAGE.Error.JobFull, false
 		} else {
 			for _, id := range job.VolunteerIds {
 				if id == idUser {
-					return "Error: User is already registered in this job.\n", false
+					return utils.MESSAGE.Error.AlreadyRegistered, false
 				}
 			}
 		}
@@ -129,7 +129,7 @@ func (s *Server) addUserToJob(idEvent, idJob, idUser int) (string, bool) {
 		job.VolunteerIds = append(job.VolunteerIds, idUser)
 		jobs[idJob] = job
 	} else {
-		return "Error: Job not found with given id.\n", false
+		return utils.MESSAGE.Error.JobNotFound, false
 	}
 
 	return "", true
@@ -142,11 +142,11 @@ func (s *Server) closeEvent(idEvent, idUser int) (string, bool) {
 	event, okEvent := events[idEvent]
 
 	if !okEvent {
-		return "Error: Event not found with given id.\n", false
+		return utils.MESSAGE.Error.EventNotFound, false
 	} else if event.CreatorId != idUser {
-		return "Error: Only the creator of the event can close it.\n", false
+		return utils.MESSAGE.Error.NotCreator, false
 	} else if event.Closed {
-		return "Error: Event is already closed.\n", false
+		return utils.MESSAGE.Error.AlreadyClosed, false
 	} else {
 		event.Closed = true
 		events[idEvent] = event
@@ -156,7 +156,7 @@ func (s *Server) closeEvent(idEvent, idUser int) (string, bool) {
 }
 
 func (s *Server) checkNbArgs(args []string, command *types.Command, optional bool) (string, bool) {
-	msg := "Error: Invalid number of arguments. Type 'help' for more information.\n"
+	msg := utils.MESSAGE.Error.InvalidNbArgs
 	if optional {
 		if len(args) < command.MinArgs || len(args)%command.MinOptArgs != 1 {
 			return msg, false
@@ -207,7 +207,7 @@ func (s *Server) showEvent(idEvent int) (string, bool) {
 		return response, true
 	}
 
-	return "Error: Event not found with given id.\n", false
+	return utils.MESSAGE.Error.EventNotFound, false
 }
 
 // Functions of each command
@@ -232,7 +232,7 @@ func (s *Server) createEvent(args []string) string {
 	userId, okUser := s.verifyUser(username, password)
 
 	if !okUser {
-		return "Error: Access denied."
+		return utils.MESSAGE.Error.AccessDenied
 	}
 
 	var nbVolunteersPerJob []int
@@ -241,7 +241,7 @@ func (s *Server) createEvent(args []string) string {
 	for i := 1; i < len(args)-utils.CREATE.MinOptArgs; i++ {
 		if i%utils.CREATE.MinOptArgs == 0 {
 			if nbVolunteer, err := strconv.Atoi(args[i]); err != nil || nbVolunteer < 0 {
-				return "Error: The number of volunteers must be an positive integer."
+				return utils.MESSAGE.Error.NbVolunteersInteger
 			} else {
 				nbVolunteersPerJob = append(nbVolunteersPerJob, nbVolunteer)
 			}
@@ -287,12 +287,12 @@ func (s *Server) close(args []string) string {
 	password := args[2]
 
 	if errEvent != nil {
-		return "Error: event id must be integer.\n"
+		return utils.MESSAGE.Error.MustBeInteger
 	}
 
 	userId, okUser := s.verifyUser(username, password)
 	if !okUser {
-		return "Error: Access denied.\n"
+		return utils.MESSAGE.Error.AccessDenied
 	}
 
 	errMsg, ok := s.closeEvent(idEvent, userId)
@@ -316,12 +316,12 @@ func (s *Server) register(args []string) string {
 	password := args[3]
 
 	if errEvent != nil || errJob != nil {
-		return "Error: Ids must be integers.\n"
+		return utils.MESSAGE.Error.MustBeInteger
 	}
 
 	userId, okUser := s.verifyUser(username, password)
 	if !okUser {
-		return "Error: Access denied.\n"
+		return utils.MESSAGE.Error.AccessDenied
 	}
 
 	events := getEntitiesFromChannel(s.eChan, s)
@@ -330,12 +330,12 @@ func (s *Server) register(args []string) string {
 	event, okEvent := events[idEvent]
 
 	if !okEvent {
-		return "Error: Event not found by this id.\n"
+		return utils.MESSAGE.Error.EventNotFound
 	} else if event.Closed {
-		return "Error: Event is closed.\n"
+		return utils.MESSAGE.Error.EventClosed
 	} else {
 		if event.CreatorId == userId {
-			return "Error: Creator of the event cannot register for a job.\n"
+			return utils.MESSAGE.Error.CreatorRegister
 		}
 	}
 
@@ -353,7 +353,7 @@ func (s *Server) show(args []string) string {
 	if len(args) == utils.SHOW.MinOptArgs {
 		idEvent, err := strconv.Atoi(args[0])
 		if err != nil {
-			return "Error: Id must be an integer.\n"
+			return utils.MESSAGE.Error.MustBeInteger
 		}
 		msg, _ := s.showEvent(idEvent)
 		return msg
@@ -394,7 +394,7 @@ func (s *Server) processCommand(command string) (string, bool) {
 	case utils.QUIT.Name:
 		end = true
 	default:
-		response = "Error: Invalid command. Type 'help' for a list of commands.\n"
+		response = utils.MESSAGE.Error.InvalidCommand
 	}
 
 	s.printDebug("\n---------- END COMMAND ----------")

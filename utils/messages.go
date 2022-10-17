@@ -9,7 +9,20 @@ var MESSAGE = struct {
 		Created: "Job created successfully.\n",
 	},
 	Error: error{
-		InvalidCommand: "Error: Invalid command. Type 'help' for a list of commands.\n",
+		InvalidCommand:      wrapError("Invalid command. Type 'help' for a list of commands.\n"),
+		InvalidNbArgs:       wrapError("Invalid number of arguments. Type 'help' for more information.\n"),
+		AccessDenied:        wrapError("Access denied.\n"),
+		MustBeInteger:       wrapError("Id must be an integer.\n"),
+		EventNotFound:       wrapError("Event not found with given id.\n"),
+		EventClosed:         wrapError("Event is closed.\n"),
+		JobNotFound:         wrapError("Job not found with given id.\n"),
+		NotCreator:          wrapError("Only the creator of the event can close it.\n"),
+		AlreadyClosed:       wrapError("Event is already closed.\n"),
+		IdEventNotMatchJob:  wrapError("Given event id does not match id in job.\n"),
+		CreatorRegister:     wrapError("Creator of the event cannot register for a job.\n"),
+		JobFull:             wrapError("Job is already full.\n"),
+		AlreadyRegistered:   wrapError("User is already registered in this job.\n"),
+		NbVolunteersInteger: wrapError("Number of volunteers must be a positive integer.\n"),
 	},
 	Help: help,
 }
@@ -19,7 +32,20 @@ type success = struct {
 }
 
 type error = struct {
-	InvalidCommand string
+	InvalidCommand      string
+	InvalidNbArgs       string
+	AccessDenied        string
+	MustBeInteger       string
+	EventNotFound       string
+	EventClosed         string
+	JobNotFound         string
+	NotCreator          string
+	AlreadyClosed       string
+	IdEventNotMatchJob  string
+	CreatorRegister     string
+	JobFull             string
+	AlreadyRegistered   string
+	NbVolunteersInteger string
 }
 
 var help = YELLOW +
@@ -45,6 +71,10 @@ var help = YELLOW +
 	GREEN + "quit" + RESET + "\n\n" +
 	YELLOW + "=============================================================" + RESET + "\n\n"
 
-// Success messages
+func wrapError(message string) string {
+	err := RED + "\n===================== ❌ ERROR ❌ ============================\n\n" + RESET
+	err += message + "\n"
+	err += RED + "==============================================================" + RESET + "\n\n"
 
-// Error messages
+	return err
+}
