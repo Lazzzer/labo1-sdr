@@ -50,11 +50,14 @@ func (tc *TestClient) Run(tests []TestInput, t *testing.T) {
 		out := make([]byte, 2048)
 		if _, err := conn.Read(out); err == nil {
 			if string(out[:len(test.Expected)]) != test.Expected {
-				t.Error("\nError for test: ", test.Description, "\n\nResponse did match expected output:\n>> Expected\n", test.Expected, "\n>> Got\n", string(out))
+				t.Error("\n" + utils.RED + "FAIL: " + utils.RESET + test.Description + utils.GREEN + "\n\nExpected\n" + utils.RESET + test.Expected + utils.RED + "\nReceived\n" + utils.RESET + string(out))
+			} else {
+				fmt.Println(utils.GREEN + "PASS: " + utils.RESET + test.Description)
 			}
 		} else {
 			t.Error("Error: could not read from connection")
 		}
+
 	}
 
 	if _, err := conn.Write([]byte("quit\n")); err != nil {
