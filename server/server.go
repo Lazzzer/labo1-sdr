@@ -3,7 +3,6 @@ package server
 import (
 	"bufio"
 	_ "embed"
-	"fmt"
 	"log"
 	"net"
 	"reflect"
@@ -449,7 +448,7 @@ func (s *Server) Run() {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Println(err)
+			log.Println(utils.RED + "(ERROR) " + err.Error() + utils.RESET)
 			return
 		} else {
 			if !s.Config.Silent {

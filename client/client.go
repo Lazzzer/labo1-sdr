@@ -70,7 +70,7 @@ func (c *Client) Run() {
 	conn, err := net.Dial("tcp", c.Config.Host+":"+strconv.Itoa(c.Config.Port))
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("❌ " + utils.RED + "Could not connect to the server." + utils.RESET)
 	} else {
 		fmt.Println(utils.MESSAGE.Title)
 	}
