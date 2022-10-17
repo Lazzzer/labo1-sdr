@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"syscall"
@@ -67,6 +68,10 @@ func (c *Client) processInput(input string) (string, error) {
 }
 
 func (c *Client) Run() {
+
+	intChan := make(chan os.Signal, 1) // Catch du CTRL+C
+	signal.Notify(intChan, syscall.SIGINT)
+
 	conn, err := net.Dial("tcp", c.Config.Host+":"+strconv.Itoa(c.Config.Port))
 
 	if err != nil {
@@ -78,9 +83,16 @@ func (c *Client) Run() {
 	defer conn.Close()
 
 	go func() {
+		<-intChan
+		conn.Write([]byte("quit\n"))
+		fmt.Println(utils.MESSAGE.Goodbye)
+		os.Exit(0)
+	}()
+
+	go func() {
 		_, errFrom := io.Copy(os.Stdout, conn) // Lecture des réponses du serveur
 		if errFrom != nil {
-			os.Exit(1)
+			os.Exit(0)
 		}
 	}()
 
@@ -90,7 +102,9 @@ func (c *Client) Run() {
 		processedInput, err := c.processInput(input)
 
 		if err != nil {
-			fmt.Print(utils.MESSAGE.Error.InvalidCommand)
+			if err.Error() == "invalid input" {
+				fmt.Print(utils.MESSAGE.Error.InvalidCommand)
+			}
 			continue
 		}
 
