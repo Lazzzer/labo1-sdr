@@ -28,46 +28,46 @@ type Server struct {
 // Les méthodes avec des types génériques n'existant pas en Go, on utilise des fonctions qui ne sont pas liées au type Server
 func getEntitiesFromChannel[T utils.Event | utils.Job | utils.User](ch <-chan map[int]T, s *Server) map[int]T {
 	entities := <-ch
-	s.debug(reflect.TypeOf(entities).String(), true, true)
+	s.debug(reflect.TypeOf(&entities).Elem().Elem().String(), true, true)
 
 	return entities
 }
 
 func loadEntitiesToChannel[T utils.Event | utils.Job | utils.User](ch chan<- map[int]T, entities map[int]T, s *Server) {
 	ch <- entities
-	s.debug(reflect.TypeOf(entities).String(), true, false)
+	s.debug(reflect.TypeOf(&entities).Elem().Elem().String(), true, false)
 }
 
 // Debug
-func (s *Server) printDebug(title string) {
-	if !s.Config.Debug && !s.Config.Silent {
-		fmt.Println(title)
+// func (s *Server) printDebug(title string) {
+// 	if !s.Config.Debug && !s.Config.Silent {
+// 		fmt.Println(title)
 
-		users := <-s.uChan
-		events := <-s.eChan
-		jobs := <-s.jChan
+// 		users := <-s.uChan
+// 		events := <-s.eChan
+// 		jobs := <-s.jChan
 
-		fmt.Print("\nUsers: ")
-		fmt.Println(users)
-		fmt.Print("\nEvents: ")
-		fmt.Println(events)
-		fmt.Print("\nJobs: ")
-		fmt.Println(jobs)
-		fmt.Println()
+// 		fmt.Print("\nUsers: ")
+// 		fmt.Println(users)
+// 		fmt.Print("\nEvents: ")
+// 		fmt.Println(events)
+// 		fmt.Print("\nJobs: ")
+// 		fmt.Println(jobs)
+// 		fmt.Println()
 
-		s.uChan <- users
-		s.eChan <- events
-		s.jChan <- jobs
-	}
-}
+// 		s.uChan <- users
+// 		s.eChan <- events
+// 		s.jChan <- jobs
+// 	}
+// }
 
 func (s *Server) debug(entity string, debug, start bool) {
 	if s.Config.Debug {
 		if start {
-			log.Println("DEBUG: using     shared entity: " + entity)
+			log.Println(utils.ORANGE + "(DEBUG) " + utils.RED + "ACCESSING" + utils.ORANGE + " shared section for entity: " + entity + utils.RESET)
 			time.Sleep(4 * time.Second)
 		} else {
-			log.Println("DEBUG: releasing shared entity: " + entity)
+			log.Println(utils.ORANGE + "(DEBUG) " + utils.GREEN + "RELEASING" + utils.ORANGE + " shared section for entity: " + entity + utils.RESET)
 		}
 	}
 }
@@ -376,8 +376,6 @@ func (s *Server) processCommand(command string) (string, bool) {
 	args = args[1:]
 	end := false
 
-	s.printDebug("\n---------- START COMMAND ----------")
-
 	switch name {
 	case utils.HELP.Name:
 		response = s.help(args)
@@ -397,8 +395,6 @@ func (s *Server) processCommand(command string) (string, bool) {
 		response = utils.MESSAGE.Error.InvalidCommand
 	}
 
-	s.printDebug("\n---------- END COMMAND ----------")
-
 	return response, end
 }
 
@@ -408,18 +404,18 @@ func (s *Server) handleConn(conn net.Conn) {
 		input, err := reader.ReadString('\n')
 
 		if err != nil {
-			fmt.Println(err)
+			log.Println(utils.RED + "(ERROR) " + err.Error() + utils.RESET)
 			break
 		}
 
-		response, end := s.processCommand(strings.TrimSpace(string(input)))
 		if !s.Config.Silent {
-			fmt.Print(conn.RemoteAddr().String()+" at "+time.Now().Format("15:04:05")+" -> ", string(input))
+			log.Print(utils.YELLOW + "(INFO) " + conn.RemoteAddr().String() + " -> " + strings.TrimSuffix(input, "\n") + utils.RESET)
 		}
+		response, end := s.processCommand(strings.TrimSpace(string(input)))
 
 		if end {
 			if !s.Config.Silent {
-				fmt.Println(conn.RemoteAddr().String() + " disconnected at " + time.Now().Format("15:04:05"))
+				log.Println(utils.RED + "(INFO) " + conn.RemoteAddr().String() + " disconnected" + utils.RESET)
 			}
 			break
 		}
@@ -447,6 +443,9 @@ func (s *Server) Run() {
 	s.eChan <- events
 	s.jChan <- jobs
 
+	if !s.Config.Silent {
+		log.Println(utils.GREEN + "(INFO) " + "Server started on port " + strconv.Itoa(s.Config.Port) + utils.RESET)
+	}
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -454,7 +453,7 @@ func (s *Server) Run() {
 			return
 		} else {
 			if !s.Config.Silent {
-				fmt.Println(conn.RemoteAddr().String() + " connected at " + time.Now().Format("15:04:05"))
+				log.Println(utils.GREEN + "(INFO) " + conn.RemoteAddr().String() + " connected" + utils.RESET)
 			}
 		}
 		go s.handleConn(conn)
