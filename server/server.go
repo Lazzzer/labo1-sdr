@@ -161,7 +161,6 @@ func (s *Server) closeEvent(idEvent, idUser int) (string, bool) {
 func (s *Server) checkNbArgs(args []string, command *types.Command, optional bool) (string, bool) {
 	msg := utils.MESSAGE.Error.InvalidNbArgs
 	if optional {
-		// TODO: ne marche pas bien avec show et 2+ arguments
 		if len(args) < command.MinArgs || len(args)%command.MinOptArgs != 1 {
 			return msg, false
 		}
@@ -373,7 +372,6 @@ func (s *Server) register(args []string) string {
 // show est la méthode appelée par la commande "show" et permet d'afficher les manifestations et leurs informations.
 // En passant un identifiant de manifestation en argument dans la commande, la méthode affiche les informations de la manifestation avec ses jobs.
 func (s *Server) show(args []string) string {
-
 	if len(args) == utils.SHOW.MinOptArgs {
 		idEvent, err := strconv.Atoi(args[0])
 		if err != nil {
@@ -381,8 +379,10 @@ func (s *Server) show(args []string) string {
 		}
 		msg, _ := s.showEvent(idEvent)
 		return msg
-	} else {
+	} else if len(args) == 0 {
 		return s.showAllEvents()
+	} else {
+		return utils.MESSAGE.Error.InvalidCommand
 	}
 }
 
