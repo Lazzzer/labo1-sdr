@@ -376,6 +376,48 @@ func (s *Server) show(args []string) string {
 	}
 }
 
+func (s *Server) jobs(args []string) string {
+	if msg, ok := s.checkNbArgs(args, &utils.JOBS, false); !ok {
+		return msg
+	}
+
+	idEvent, errEvent := strconv.Atoi(args[0])
+	if errEvent != nil {
+		return utils.MESSAGE.Error.MustBeInteger
+	}
+
+	events := getEntitiesFromChannel(s.eChan, s)
+	defer loadEntitiesToChannel(s.eChan, events, s)
+
+	event, ok := events[idEvent]
+	if !ok {
+		return utils.MESSAGE.Error.EventNotFound
+	}
+
+	jobs := getEntitiesFromChannel(s.jChan, s)
+	users := getEntitiesFromChannel(s.uChan, s)
+	defer loadEntitiesToChannel(s.jChan, jobs, s)
+	defer loadEntitiesToChannel(s.uChan, users, s)
+
+	response := "#" + strconv.Itoa(idEvent) + " " + event.Name + ":\n"
+	suffix := ""
+	var allUsersWorking []string
+	for _, jobId := range event.JobIds {
+		response += suffix + "#" + strconv.Itoa(jobId) + " " + jobs[jobId].Name + " (" + strconv.Itoa(len(jobs[jobId].VolunteerIds)) + "/" + strconv.Itoa(jobs[jobId].NbVolunteers) + ")"
+		suffix = " | "
+		for _, userId := range jobs[jobId].VolunteerIds {
+			allUsersWorking = append(allUsersWorking, users[userId].Username)
+		}
+	}
+	response += "\n"
+
+	for _, name := range allUsersWorking {
+		response += name + "\n"
+	}
+
+	return response + "\n"
+}
+
 // Command processing
 func (s *Server) processCommand(command string) (string, bool) {
 	args := strings.Fields(command)
@@ -402,7 +444,7 @@ func (s *Server) processCommand(command string) (string, bool) {
 	case utils.SHOW.Name:
 		response = s.show(args)
 	case utils.JOBS.Name:
-		response = "TODO"
+		response = s.jobs(args)
 	case utils.QUIT.Name:
 		end = true
 	default:
