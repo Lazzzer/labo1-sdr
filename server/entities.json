@@ -38,7 +38,6 @@
         "1": {
           "name": "Montage",
           "creator_id": 5,
-          "event_id": 1,
           "nb_volunteers": 4,
           "volunteer_ids": [
             4
@@ -47,7 +46,6 @@
         "2": {
           "name": "Stands",
           "creator_id": 5,
-          "event_id": 1,
           "nb_volunteers": 10,
           "volunteer_ids": [
             6,
@@ -57,7 +55,6 @@
         "3": {
           "name": "Sécurité",
           "creator_id": 5,
-          "event_id": 1,
           "nb_volunteers": 2,
           "volunteer_ids": [
             1,
@@ -74,7 +71,6 @@
         "1": {
           "name": "Montage",
           "creator_id": 6,
-          "event_id": 2,
           "nb_volunteers": 5,
           "volunteer_ids": [
             3,
@@ -84,7 +80,6 @@
         "2": {
           "name": "Stands",
           "creator_id": 6,
-          "event_id": 2,
           "nb_volunteers": 2,
           "volunteer_ids": [
             1,
@@ -94,7 +89,6 @@
         "3": {
           "name": "Sécurité",
           "creator_id": 6,
-          "event_id": 2,
           "nb_volunteers": 2,
           "volunteer_ids": []
         }
@@ -108,14 +102,12 @@
         "1": {
           "name": "Montage",
           "creator_id": 7,
-          "event_id": 3,
           "nb_volunteers": 4,
           "volunteer_ids": []
         },
         "2": {
           "name": "Stands",
           "creator_id": 7,
-          "event_id": 3,
           "nb_volunteers": 4,
           "volunteer_ids": []
         }

@@ -170,7 +170,7 @@ func (s *Server) showAllEvents() string {
 
 	for i := 1; i <= len(events); i++ {
 		event := events[i]
-		creator, _ := users[event.CreatorId]
+		creator := users[event.CreatorId]
 		if event.Closed {
 			response += "#" + strconv.Itoa(i) + ": " + event.Name + " (creator: " + creator.Username + ")" +
 				utils.RED + " Closed" + utils.RESET + "\n"
@@ -194,16 +194,14 @@ func (s *Server) showEvent(idEvent int) (string, bool) {
 	if ok {
 		users := getEntitiesFromChannel(s.uChan, s)
 		defer loadEntitiesToChannel(s.uChan, users, s)
-		creator, _ := users[event.CreatorId]
+		creator := users[event.CreatorId]
 		response := "#" + strconv.Itoa(idEvent) + ": " + event.Name + " (creator: " + creator.Username + ")\n"
 		response += "Jobs:\n"
 
-		for i := 1; i <= len(event.Jobs); i++ {
-			job := event.Jobs[i]
-			if job.EventId == idEvent {
-				response += "Job " + strconv.Itoa(i) + ": " + job.Name + " (" + strconv.Itoa(len(job.VolunteerIds)) + "/" + strconv.Itoa(job.NbVolunteers) + ")\n"
-			}
+		for idJob, job := range event.Jobs {
+			response += "Job " + strconv.Itoa(idJob) + ": " + job.Name + " (" + strconv.Itoa(len(job.VolunteerIds)) + "/" + strconv.Itoa(job.NbVolunteers) + ")\n"
 		}
+
 		response += "\n"
 
 		return response, true
@@ -257,12 +255,12 @@ func (s *Server) createEvent(args []string) string {
 
 	eventId := len(events) + 1
 	currentJobId := 1
+
 	newJobs := map[int]types.Job{}
 	for i := 0; i < len(jobsName); i++ {
 		newJob := types.Job{
 			Name:         jobsName[i],
 			CreatorId:    nbVolunteersPerJob[i],
-			EventId:      userId,
 			NbVolunteers: eventId,
 			VolunteerIds: []int{},
 		}
