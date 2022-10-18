@@ -220,8 +220,9 @@ func (s *Server) showEvent(idEvent int) (string, bool) {
 		response := "#" + strconv.Itoa(idEvent) + ": " + event.Name + " (creator: " + creator.Username + ")\n"
 		response += "Jobs:\n"
 
-		for idJob, job := range event.Jobs {
-			response += "Job " + strconv.Itoa(idJob) + ": " + job.Name + " (" + strconv.Itoa(len(job.VolunteerIds)) + "/" + strconv.Itoa(job.NbVolunteers) + ")\n"
+		for i := 1; i <= len(event.Jobs); i++ {
+			job := event.Jobs[i]
+			response += "Job " + strconv.Itoa(i) + ": " + job.Name + " (" + strconv.Itoa(len(job.VolunteerIds)) + "/" + strconv.Itoa(job.NbVolunteers) + ")\n"
 		}
 
 		response += "\n"
@@ -404,13 +405,15 @@ func (s *Server) jobs(args []string) string {
 	response := "#" + strconv.Itoa(idEvent) + " " + event.Name + ":\n"
 	suffix := ""
 	var allUsersWorking []string
-	for jobId, job := range event.Jobs {
-		response += suffix + "#" + strconv.Itoa(jobId) + " " + job.Name + " (" + strconv.Itoa(len(job.VolunteerIds)) + "/" + strconv.Itoa(job.NbVolunteers) + ")"
+	for i := 1; i <= len(event.Jobs); i++ {
+		job := event.Jobs[i]
+		response += suffix + "#" + strconv.Itoa(i) + " " + job.Name + " (" + strconv.Itoa(len(job.VolunteerIds)) + "/" + strconv.Itoa(job.NbVolunteers) + ")"
 		suffix = " | "
 		for _, userId := range job.VolunteerIds {
 			allUsersWorking = append(allUsersWorking, users[userId].Username)
 		}
 	}
+
 	response += "\n"
 
 	for _, name := range allUsersWorking {
