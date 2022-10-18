@@ -1,3 +1,11 @@
+// Auteurs: Jonathan Friedli, Lazar Pavicevic
+// Labo 1 SDR
+
+// Package server propose un serveur TCP qui effectue une gestion de manifestations.
+//
+// Le serveur est capable de gérer plusieurs clients en même temps.
+// Au démarrage, le serveur charge une configuration depuis un fichier config.json.
+// Il charge ensuite les utilisateurs et les événements depuis un fichier entities.json.
 package server
 
 import (
@@ -17,23 +25,30 @@ import (
 //go:embed entities.json
 var entities string
 
+// Server est une structure permettant de gérer un serveur TCP.
 type Server struct {
-	Config types.Config
-	eChan  chan map[int]types.Event
-	uChan  chan map[int]types.User
+	Config types.Config             // Configuration du serveur
+	eChan  chan map[int]types.Event // Canal d'accès à la map contenant des manifestations
+	uChan  chan map[int]types.User  // Canal d'accès à la map contenant des utilisateurs
 }
 
-// Les méthodes avec des types génériques n'existant pas en Go, on utilise des fonctions qui ne sont pas liées au type Server
+// getEntitiesFromChannel permet de récupérer une map de manifestations ou d'utilisateurs depuis un canal.
+//
+// En mode debug, le serveur attend un certain laps de temps et log l'accès à la section critique en question avant de retourner l'entité.
 func getEntitiesFromChannel[T types.Event | types.User](ch <-chan map[int]T, s *Server) map[int]T {
 	entities := <-ch
-	s.debug(reflect.TypeOf(&entities).Elem().Elem().String(), true, true)
+	s.debug(reflect.TypeOf(&entities).Elem().Elem().String(), true)
 
 	return entities
 }
 
+// loadEntitiesToChannel permet de charger une map de manifestations ou d'utilisateurs dans un canal.
+//
+// En mode debug, le serveur attend un certain laps de temps et log l'accès à la section critique en question avant de laisser l'exécution
+// se poursuivre.
 func loadEntitiesToChannel[T types.Event | types.User](ch chan<- map[int]T, entities map[int]T, s *Server) {
 	ch <- entities
-	s.debug(reflect.TypeOf(&entities).Elem().Elem().String(), true, false)
+	s.debug(reflect.TypeOf(&entities).Elem().Elem().String(), false)
 }
 
 // Debug
@@ -55,18 +70,23 @@ func loadEntitiesToChannel[T types.Event | types.User](ch chan<- map[int]T, enti
 // 	}
 // }
 
-func (s *Server) debug(entity string, debug, start bool) {
+// debug permet d'afficher des informations de debug si le mode debug est activé.
+//
+// La méthode ralentit artificiellement l'exécution du serveur pour tester les accès concurrents d'une durée égale à la propriété
+// DebugDelay de Config.
+func (s *Server) debug(entity string, start bool) {
 	if s.Config.Debug {
 		if start {
 			log.Println(utils.ORANGE + "(DEBUG) " + utils.RED + "ACCESSING" + utils.ORANGE + " shared section for entity: " + entity + utils.RESET)
-			time.Sleep(4 * time.Second)
+			time.Sleep(time.Duration(s.Config.DebugDelay) * time.Second)
 		} else {
 			log.Println(utils.ORANGE + "(DEBUG) " + utils.GREEN + "RELEASING" + utils.ORANGE + " shared section for entity: " + entity + utils.RESET)
 		}
 	}
 }
 
-// Helpers
+// verifyUser permet de vérifier si un utilisateur existe dans la map des utilisateurs et retourne sa clé dans la map et un booléen
+// indiquant sa présence.
 func (s *Server) verifyUser(username, password string) (int, bool) {
 	users := getEntitiesFromChannel(s.uChan, s)
 	defer loadEntitiesToChannel(s.uChan, users, s)
@@ -80,6 +100,8 @@ func (s *Server) verifyUser(username, password string) (int, bool) {
 	return 0, false
 }
 
+// removeUserInJob permet de supprimer l'id d'un utilisateur du tableau des utilisateurs qui ont postulé à un job et retourne si l'opération
+// a réussi.
 func (s *Server) removeUserInJob(idUser int, job *types.Job) bool {
 	for i, volunteerId := range job.VolunteerIds {
 		if volunteerId == idUser {
@@ -97,7 +119,7 @@ func (s *Server) addUserToJob(event *types.Event, idJob, idUser int) (string, bo
 
 	if ok {
 		// Différentes vérifications selon le cahier des charges avec les messages d'erreur correspondants
-		if job.CreatorId == idUser {
+		if event.CreatorId == idUser {
 			return utils.MESSAGE.Error.CreatorRegister, false
 		} else if len(job.VolunteerIds) == job.NbVolunteers {
 			return utils.MESSAGE.Error.JobFull, false
@@ -260,8 +282,7 @@ func (s *Server) createEvent(args []string) string {
 	for i := 0; i < len(jobsName); i++ {
 		newJob := types.Job{
 			Name:         jobsName[i],
-			CreatorId:    nbVolunteersPerJob[i],
-			NbVolunteers: eventId,
+			NbVolunteers: nbVolunteersPerJob[i],
 			VolunteerIds: []int{},
 		}
 		newJobs[currentJobId] = newJob
@@ -462,6 +483,7 @@ func (s *Server) handleConn(conn net.Conn) {
 	conn.Close()
 }
 
+// /
 func (s *Server) Run() {
 
 	users, events := utils.GetEntities(entities)

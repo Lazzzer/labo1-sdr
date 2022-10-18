@@ -27,7 +27,7 @@ type TestClient struct {
 
 func init() {
 	serv := server.Server{Config: types.Config{Port: 8081, Debug: false, Silent: true}}
-	servDebug := server.Server{Config: types.Config{Port: 8082, Debug: true, Silent: true}}
+	servDebug := server.Server{Config: types.Config{Port: 8082, Debug: true, Silent: true, DebugDelay: 5}}
 
 	go serv.Run()
 	go servDebug.Run()

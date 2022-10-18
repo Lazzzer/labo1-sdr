@@ -1,10 +1,11 @@
 package types
 
 type Config struct {
-	Host   string `json:"host,omitempty"`
-	Port   int    `json:"port"`
-	Debug  bool   `json:"debug,omitempty"`
-	Silent bool   `json:"silent,omitempty"`
+	Host       string `json:"host,omitempty"`
+	Port       int    `json:"port"`
+	Debug      bool   `json:"debug,omitempty"`
+	Silent     bool   `json:"silent,omitempty"`
+	DebugDelay int    `json:"debug_delay,omitempty"`
 }
 
 type Command struct {
@@ -21,7 +22,6 @@ type User struct {
 
 type Job struct {
 	Name         string `json:"name"`
-	CreatorId    int    `json:"creator_id"`
 	EventId      int    `json:"event_id"`
 	NbVolunteers int    `json:"nb_volunteers"`
 	VolunteerIds []int  `json:"volunteer_ids"`
