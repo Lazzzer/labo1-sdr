@@ -180,8 +180,16 @@ func (s *Server) showAllEvents() string {
 	for i := 1; i <= len(events); i++ {
 		event := events[i]
 		creator, _ := users[event.CreatorId]
-		response += "#" + strconv.Itoa(i) + ": " + event.Name + " (creator: " + creator.Username + ")\n"
+		if event.Closed {
+			response += "#" + strconv.Itoa(i) + ": " + event.Name + " (creator: " + creator.Username + ")" +
+				utils.RED + " Closed" + utils.RESET + "\n"
+		} else {
+			response += "#" + strconv.Itoa(i) + ": " + event.Name + " (creator: " + creator.Username + ")" +
+				utils.GREEN + " Open" + utils.RESET + "\n"
+		}
+
 	}
+	response += "\n"
 
 	return response
 }
@@ -208,6 +216,7 @@ func (s *Server) showEvent(idEvent int) (string, bool) {
 				response += "Job " + strconv.Itoa(i) + ": " + job.Name + " (" + strconv.Itoa(len(job.VolunteerIds)) + "/" + strconv.Itoa(job.NbVolunteers) + ")\n"
 			}
 		}
+		response += "\n"
 
 		return response, true
 	}
