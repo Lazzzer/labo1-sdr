@@ -98,7 +98,7 @@
       "name": "Balélec 2023",
       "closed": false,
       "creator_id": 7,
-      "job_ids": {
+      "jobs": {
         "1": {
           "name": "Montage",
           "creator_id": 7,
