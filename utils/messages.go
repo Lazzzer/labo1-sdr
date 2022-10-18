@@ -57,6 +57,13 @@ func (m *Message) WrapSuccess(message string) string {
 	return success
 }
 
+func (m *Message) WrapEvent(message string) string {
+	event := CYAN + "\n====================== 📅 EVENT 📅 ===========================\n\n" + RESET
+	event += message + "\n"
+	event += CYAN + "==============================================================" + RESET + "\n\n"
+	return event
+}
+
 func wrapError(message string) string {
 	err := RED + "\n===================== ❌ ERROR ❌ ============================\n\n" + RESET
 	err += message + "\n"

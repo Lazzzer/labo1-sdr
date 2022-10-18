@@ -211,17 +211,25 @@ func (s *Server) showEvent(idEvent int) (string, bool) {
 		users := getEntitiesFromChannel(s.uChan, s)
 		defer loadEntitiesToChannel(s.uChan, users, s)
 		creator := users[event.CreatorId]
-		response := "#" + strconv.Itoa(idEvent) + ": " + event.Name + " (creator: " + creator.Username + ")\n"
-		response += "Jobs:\n"
+
+		response := "#" + strconv.Itoa(idEvent) + " " + utils.BOLD + utils.CYAN + event.Name + utils.RESET + "\n\n"
+		response += "Creator: " + creator.Username + "\n\n"
+		response += "🦺" + utils.BOLD + " Jobs" + utils.RESET + "\n\n"
 
 		for i := 1; i <= len(event.Jobs); i++ {
 			job := event.Jobs[i]
-			response += "Job " + strconv.Itoa(i) + ": " + job.Name + " (" + strconv.Itoa(len(job.VolunteerIds)) + "/" + strconv.Itoa(job.NbVolunteers) + ")\n"
+
+			var color string
+			if len(job.VolunteerIds) == job.NbVolunteers {
+				color = utils.RED
+			} else {
+				color = utils.GREEN
+			}
+
+			response += color + "(" + strconv.Itoa(len(job.VolunteerIds)) + "/" + strconv.Itoa(job.NbVolunteers) + ")" + utils.RESET + "\tJob #" + strconv.Itoa(i) + ": " + job.Name + "\n"
 		}
 
-		response += "\n"
-
-		return response, true
+		return utils.MESSAGE.WrapEvent(response), true
 	}
 
 	return utils.MESSAGE.Error.EventNotFound, false
