@@ -205,7 +205,7 @@ func (s *Server) showEvent(idEvent int) (string, bool) {
 		for i := 1; i <= len(jobs); i++ {
 			job := jobs[i]
 			if job.EventId == idEvent {
-				response += "Job " + strconv.Itoa(i) + ": " + job.Name + "\n"
+				response += "Job " + strconv.Itoa(i) + ": " + job.Name + " (" + strconv.Itoa(len(job.VolunteerIds)) + "/" + strconv.Itoa(job.NbVolunteers) + ")\n"
 			}
 		}
 
