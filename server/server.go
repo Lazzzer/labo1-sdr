@@ -18,21 +18,20 @@ import (
 var entities string
 
 type Server struct {
-	Config utils.Config
-	eChan  chan map[int]utils.Event
-	jChan  chan map[int]utils.Job
-	uChan  chan map[int]utils.User
+	Config types.Config
+	eChan  chan map[int]types.Event
+	uChan  chan map[int]types.User
 }
 
 // Les méthodes avec des types génériques n'existant pas en Go, on utilise des fonctions qui ne sont pas liées au type Server
-func getEntitiesFromChannel[T utils.Event | utils.Job | utils.User](ch <-chan map[int]T, s *Server) map[int]T {
+func getEntitiesFromChannel[T types.Event | types.User](ch <-chan map[int]T, s *Server) map[int]T {
 	entities := <-ch
 	s.debug(reflect.TypeOf(&entities).Elem().Elem().String(), true, true)
 
 	return entities
 }
 
-func loadEntitiesToChannel[T utils.Event | utils.Job | utils.User](ch chan<- map[int]T, entities map[int]T, s *Server) {
+func loadEntitiesToChannel[T types.Event | types.User](ch chan<- map[int]T, entities map[int]T, s *Server) {
 	ch <- entities
 	s.debug(reflect.TypeOf(&entities).Elem().Elem().String(), true, false)
 }
@@ -44,19 +43,15 @@ func loadEntitiesToChannel[T utils.Event | utils.Job | utils.User](ch chan<- map
 
 // 		users := <-s.uChan
 // 		events := <-s.eChan
-// 		jobs := <-s.jChan
 
 // 		fmt.Print("\nUsers: ")
 // 		fmt.Println(users)
 // 		fmt.Print("\nEvents: ")
 // 		fmt.Println(events)
-// 		fmt.Print("\nJobs: ")
-// 		fmt.Println(jobs)
 // 		fmt.Println()
 
 // 		s.uChan <- users
 // 		s.eChan <- events
-// 		s.jChan <- jobs
 // 	}
 // }
 
@@ -85,27 +80,24 @@ func (s *Server) verifyUser(username, password string) (int, bool) {
 	return 0, false
 }
 
-func (s *Server) removeUserInJob(idUser int, job *utils.Job) {
+func (s *Server) removeUserInJob(idUser int, job *types.Job) bool {
 	for i, volunteerId := range job.VolunteerIds {
 		if volunteerId == idUser {
 			job.VolunteerIds[i] = job.VolunteerIds[len(job.VolunteerIds)-1]
 			job.VolunteerIds = job.VolunteerIds[:len(job.VolunteerIds)-1]
-			break
+			return true
 		}
 	}
+	return false
 }
 
-func (s *Server) addUserToJob(idEvent, idJob, idUser int) (string, bool) {
-	jobs := getEntitiesFromChannel(s.jChan, s)
-	defer loadEntitiesToChannel(s.jChan, jobs, s)
+func (s *Server) addUserToJob(event *types.Event, idJob, idUser int) (string, bool) {
 
-	job, ok := jobs[idJob]
+	job, ok := event.Jobs[idJob]
 
 	if ok {
 		// Différentes vérifications selon le cahier des charges avec les messages d'erreur correspondants
-		if job.EventId != idEvent {
-			return utils.MESSAGE.Error.IdEventNotMatchJob, false
-		} else if job.CreatorId == idUser {
+		if job.CreatorId == idUser {
 			return utils.MESSAGE.Error.CreatorRegister, false
 		} else if len(job.VolunteerIds) == job.NbVolunteers {
 			return utils.MESSAGE.Error.JobFull, false
@@ -118,15 +110,14 @@ func (s *Server) addUserToJob(idEvent, idJob, idUser int) (string, bool) {
 		}
 
 		// Suppression de l'utilisateur dans un job de la manifestation
-		for exploredJobId, exploredJob := range jobs {
-			if exploredJob.EventId == idEvent {
-				s.removeUserInJob(idUser, &exploredJob)
-				jobs[exploredJobId] = exploredJob
+		for exploredJobId, exploredJob := range event.Jobs {
+			if s.removeUserInJob(idUser, &exploredJob) {
+				event.Jobs[exploredJobId] = exploredJob
 			}
 		}
 		// Ajout de l'utilisateur dans son nouveau job
 		job.VolunteerIds = append(job.VolunteerIds, idUser)
-		jobs[idJob] = job
+		event.Jobs[idJob] = job
 	} else {
 		return utils.MESSAGE.Error.JobNotFound, false
 	}
@@ -207,11 +198,8 @@ func (s *Server) showEvent(idEvent int) (string, bool) {
 		response := "#" + strconv.Itoa(idEvent) + ": " + event.Name + " (creator: " + creator.Username + ")\n"
 		response += "Jobs:\n"
 
-		jobs := getEntitiesFromChannel(s.jChan, s)
-		defer loadEntitiesToChannel(s.jChan, jobs, s)
-
-		for i := 1; i <= len(jobs); i++ {
-			job := jobs[i]
+		for i := 1; i <= len(event.Jobs); i++ {
+			job := event.Jobs[i]
 			if job.EventId == idEvent {
 				response += "Job " + strconv.Itoa(i) + ": " + job.Name + " (" + strconv.Itoa(len(job.VolunteerIds)) + "/" + strconv.Itoa(job.NbVolunteers) + ")\n"
 			}
@@ -264,30 +252,28 @@ func (s *Server) createEvent(args []string) string {
 		}
 	}
 
-	jobs := getEntitiesFromChannel(s.jChan, s)
-	defer loadEntitiesToChannel(s.jChan, jobs, s)
-
 	events := getEntitiesFromChannel(s.eChan, s)
 	defer loadEntitiesToChannel(s.eChan, events, s)
 
 	eventId := len(events) + 1
-	currentJobId := len(jobs) + 1
-	allJobsId := []int{}
+	currentJobId := 1
+	newJobs := map[int]types.Job{}
 	for i := 0; i < len(jobsName); i++ {
-		jobs[currentJobId] = utils.Job{
+		newJob := types.Job{
 			Name:         jobsName[i],
 			CreatorId:    nbVolunteersPerJob[i],
 			EventId:      userId,
 			NbVolunteers: eventId,
-			VolunteerIds: []int{}}
-		allJobsId = append(allJobsId, currentJobId)
+			VolunteerIds: []int{},
+		}
+		newJobs[currentJobId] = newJob
 		currentJobId++
 	}
 
-	newEvent := utils.Event{Name: args[0], CreatorId: userId, JobIds: allJobsId}
+	newEvent := types.Event{Name: args[0], CreatorId: userId, Jobs: newJobs}
 	events[eventId] = newEvent
 
-	return utils.MESSAGE.WrapSuccess("Event #" + strconv.Itoa(eventId) + " " + newEvent.Name + " and " + strconv.Itoa(len(allJobsId)) + " job(s)" + " created\n")
+	return utils.MESSAGE.WrapSuccess("Event #" + strconv.Itoa(eventId) + " " + newEvent.Name + " and " + strconv.Itoa(len(newJobs)) + " job(s)" + " created\n")
 }
 
 func (s *Server) close(args []string) string {
@@ -353,7 +339,7 @@ func (s *Server) register(args []string) string {
 		}
 	}
 
-	msg, okJob := s.addUserToJob(idEvent, idJob, userId)
+	msg, okJob := s.addUserToJob(&event, idJob, userId)
 
 	if !okJob {
 		return msg
@@ -361,7 +347,6 @@ func (s *Server) register(args []string) string {
 	return utils.MESSAGE.WrapSuccess("User registered in job #" + strconv.Itoa(idJob) + " for Event #" + strconv.Itoa(idEvent) + " " + event.Name + ".\n")
 }
 
-// TODO: Présentation clean
 func (s *Server) show(args []string) string {
 
 	if len(args) == utils.SHOW.MinOptArgs {
@@ -394,18 +379,16 @@ func (s *Server) jobs(args []string) string {
 		return utils.MESSAGE.Error.EventNotFound
 	}
 
-	jobs := getEntitiesFromChannel(s.jChan, s)
 	users := getEntitiesFromChannel(s.uChan, s)
-	defer loadEntitiesToChannel(s.jChan, jobs, s)
 	defer loadEntitiesToChannel(s.uChan, users, s)
 
 	response := "#" + strconv.Itoa(idEvent) + " " + event.Name + ":\n"
 	suffix := ""
 	var allUsersWorking []string
-	for _, jobId := range event.JobIds {
-		response += suffix + "#" + strconv.Itoa(jobId) + " " + jobs[jobId].Name + " (" + strconv.Itoa(len(jobs[jobId].VolunteerIds)) + "/" + strconv.Itoa(jobs[jobId].NbVolunteers) + ")"
+	for jobId, job := range event.Jobs {
+		response += suffix + "#" + strconv.Itoa(jobId) + " " + job.Name + " (" + strconv.Itoa(len(job.VolunteerIds)) + "/" + strconv.Itoa(job.NbVolunteers) + ")"
 		suffix = " | "
-		for _, userId := range jobs[jobId].VolunteerIds {
+		for _, userId := range job.VolunteerIds {
 			allUsersWorking = append(allUsersWorking, users[userId].Username)
 		}
 	}
@@ -483,7 +466,7 @@ func (s *Server) handleConn(conn net.Conn) {
 
 func (s *Server) Run() {
 
-	users, events, jobs := utils.GetEntities(entities)
+	users, events := utils.GetEntities(entities)
 
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(s.Config.Port))
 	if err != nil {
@@ -491,13 +474,11 @@ func (s *Server) Run() {
 	}
 	defer listener.Close()
 
-	s.eChan = make(chan map[int]utils.Event, 1)
-	s.jChan = make(chan map[int]utils.Job, 1)
-	s.uChan = make(chan map[int]utils.User, 1)
+	s.eChan = make(chan map[int]types.Event, 1)
+	s.uChan = make(chan map[int]types.User, 1)
 
 	s.uChan <- users
 	s.eChan <- events
-	s.jChan <- jobs
 
 	if !s.Config.Silent {
 		log.Println(utils.GREEN + "(INFO) " + "Server started on port " + strconv.Itoa(s.Config.Port) + utils.RESET)

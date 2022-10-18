@@ -13,11 +13,12 @@ import (
 	"syscall"
 
 	"github.com/Lazzzer/labo1-sdr/utils"
+	"github.com/Lazzzer/labo1-sdr/utils/types"
 	"golang.org/x/term"
 )
 
 type Client struct {
-	Config utils.Config
+	Config types.Config
 }
 
 func (c *Client) askCredentials() (string, error) {

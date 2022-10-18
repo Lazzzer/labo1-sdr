@@ -8,23 +8,16 @@ import (
 	"github.com/Lazzzer/labo1-sdr/utils/types"
 )
 
-// Aliases
-type Config = types.Config
-type Entities = types.Entities
-type Event = types.Event
-type Job = types.Job
-type User = types.User
-
-func GetEntities(content string) (map[int]User, map[int]Event, map[int]Job) {
-	entities := parse[Entities](content)
-	return entities.Users, entities.Events, entities.Jobs
+func GetEntities(content string) (map[int]types.User, map[int]types.Event) {
+	entities := parse[types.Entities](content)
+	return entities.Users, entities.Events
 }
 
-func GetConfig(path string) Config {
-	return *parse[Config](path)
+func GetConfig(path string) types.Config {
+	return *parse[types.Config](path)
 }
 
-func parse[T Config | Entities](content string) *T {
+func parse[T types.Config | types.Entities](content string) *T {
 	var object T
 
 	err := json.Unmarshal([]byte(content), &object)

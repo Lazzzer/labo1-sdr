@@ -28,14 +28,13 @@ type Job struct {
 }
 
 type Event struct {
-	Name      string `json:"name"`
-	Closed    bool   `json:"closed"`
-	CreatorId int    `json:"creator_id"`
-	JobIds    []int  `json:"job_ids"`
+	Name      string      `json:"name"`
+	Closed    bool        `json:"closed"`
+	CreatorId int         `json:"creator_id"`
+	Jobs      map[int]Job `json:"jobs"`
 }
 
 type Entities struct {
 	Users  map[int]User  `json:"users"`
 	Events map[int]Event `json:"events"`
-	Jobs   map[int]Job   `json:"jobs"`
 }

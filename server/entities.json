@@ -34,102 +34,93 @@
       "name": "Montreux Jazz 2022",
       "closed": true,
       "creator_id": 5,
-      "job_ids": [
-        1,
-        2,
-        3
-      ]
+      "jobs": {
+        "1": {
+          "name": "Montage",
+          "creator_id": 5,
+          "event_id": 1,
+          "nb_volunteers": 4,
+          "volunteer_ids": [
+            4
+          ]
+        },
+        "2": {
+          "name": "Stands",
+          "creator_id": 5,
+          "event_id": 1,
+          "nb_volunteers": 10,
+          "volunteer_ids": [
+            6,
+            7
+          ]
+        },
+        "3": {
+          "name": "Sécurité",
+          "creator_id": 5,
+          "event_id": 1,
+          "nb_volunteers": 2,
+          "volunteer_ids": [
+            1,
+            2
+          ]
+        }
+      }
     },
     "2": {
       "name": "Baleinev 2023",
       "closed": false,
       "creator_id": 6,
-      "job_ids": [
-        4,
-        5,
-        6
-      ]
+      "jobs": {
+        "1": {
+          "name": "Montage",
+          "creator_id": 6,
+          "event_id": 2,
+          "nb_volunteers": 5,
+          "volunteer_ids": [
+            3,
+            4
+          ]
+        },
+        "2": {
+          "name": "Stands",
+          "creator_id": 6,
+          "event_id": 2,
+          "nb_volunteers": 2,
+          "volunteer_ids": [
+            1,
+            7
+          ]
+        },
+        "3": {
+          "name": "Sécurité",
+          "creator_id": 6,
+          "event_id": 2,
+          "nb_volunteers": 2,
+          "volunteer_ids": []
+        }
+      }
     },
     "3": {
       "name": "Balélec 2023",
       "closed": false,
       "creator_id": 7,
-      "job_ids": [
-        7,
-        8
-      ]
+      "job_ids": {
+        "1": {
+          "name": "Montage",
+          "creator_id": 7,
+          "event_id": 3,
+          "nb_volunteers": 4,
+          "volunteer_ids": []
+        },
+        "2": {
+          "name": "Stands",
+          "creator_id": 7,
+          "event_id": 3,
+          "nb_volunteers": 4,
+          "volunteer_ids": []
+        }
+      }
     }
   },
-  "jobs": {
-    "1": {
-      "name": "Montage",
-      "creator_id": 5,
-      "event_id": 1,
-      "nb_volunteers": 4,
-      "volunteer_ids": [
-        4
-      ]
-    },
-    "2": {
-      "name": "Stands",
-      "creator_id": 5,
-      "event_id": 1,
-      "nb_volunteers": 10,
-      "volunteer_ids": [
-        6,
-        7
-      ]
-    },
-    "3": {
-      "name": "Sécurité",
-      "creator_id": 5,
-      "event_id": 1,
-      "nb_volunteers": 2,
-      "volunteer_ids": [
-        1,
-        2
-      ]
-    },
-    "4": {
-      "name": "Montage",
-      "creator_id": 6,
-      "event_id": 2,
-      "nb_volunteers": 5,
-      "volunteer_ids": [
-        3,
-        4
-      ]
-    },
-    "5": {
-      "name": "Stands",
-      "creator_id": 6,
-      "event_id": 2,
-      "nb_volunteers": 2,
-      "volunteer_ids": [
-        1,
-        7
-      ]
-    },
-    "6": {
-      "name": "Sécurité",
-      "creator_id": 6,
-      "event_id": 2,
-      "nb_volunteers": 2,
-      "volunteer_ids": []
-    },
-    "7": {
-      "name": "Montage",
-      "creator_id": 7,
-      "event_id": 3,
-      "nb_volunteers": 4,
-      "volunteer_ids": []
-    },
-    "8": {
-      "name": "Stands",
-      "creator_id": 7,
-      "event_id": 3,
-      "nb_volunteers": 4,
-      "volunteer_ids": []
-    }
-  }
+  "jobs": {}
 }

@@ -9,10 +9,11 @@ import (
 
 	"github.com/Lazzzer/labo1-sdr/server"
 	"github.com/Lazzzer/labo1-sdr/utils"
+	"github.com/Lazzzer/labo1-sdr/utils/types"
 )
 
-var testingConfig = utils.Config{Host: "localhost", Port: 8081}
-var testingDebugConfig = utils.Config{Host: "localhost", Port: 8082}
+var testingConfig = types.Config{Host: "localhost", Port: 8081}
+var testingDebugConfig = types.Config{Host: "localhost", Port: 8082}
 
 type TestInput struct {
 	Description string
@@ -21,12 +22,12 @@ type TestInput struct {
 }
 
 type TestClient struct {
-	Config utils.Config
+	Config types.Config
 }
 
 func init() {
-	serv := server.Server{Config: utils.Config{Port: 8081, Debug: false, Silent: true}}
-	servDebug := server.Server{Config: utils.Config{Port: 8082, Debug: true, Silent: true}}
+	serv := server.Server{Config: types.Config{Port: 8081, Debug: false, Silent: true}}
+	servDebug := server.Server{Config: types.Config{Port: 8082, Debug: true, Silent: true}}
 
 	go serv.Run()
 	go servDebug.Run()
@@ -148,18 +149,18 @@ func Test_Register_Command(t *testing.T) {
 	tests := []TestInput{
 		{
 			Description: "Send register command and receive confirmation message",
-			Input:       "register 2 4 lazar root\n",
-			Expected:    utils.MESSAGE.WrapSuccess("User registered in job #4 for Event #2 Baleinev 2023.\n"),
+			Input:       "register 2 1 lazar root\n",
+			Expected:    utils.MESSAGE.WrapSuccess("User registered in job #1 for Event #2 Baleinev 2023.\n"),
 		},
 		{
 			Description: "Send register command for a user in another job of the same event and receive confirmation message",
-			Input:       "register 2 6 lazar root\n",
-			Expected:    utils.MESSAGE.WrapSuccess("User registered in job #6 for Event #2 Baleinev 2023.\n"),
+			Input:       "register 2 3 lazar root\n",
+			Expected:    utils.MESSAGE.WrapSuccess("User registered in job #3 for Event #2 Baleinev 2023.\n"),
 		},
 		{
 			Description: "Send register command for a user who left a job for another and came back to the job in the same event and receive confirmation message",
-			Input:       "register 2 4 lazar root\n",
-			Expected:    utils.MESSAGE.WrapSuccess("User registered in job #4 for Event #2 Baleinev 2023.\n"),
+			Input:       "register 2 1 lazar root\n",
+			Expected:    utils.MESSAGE.WrapSuccess("User registered in job #1 for Event #2 Baleinev 2023.\n"),
 		},
 		{
 			Description: "Send register command with bad ids and receive error message",
@@ -178,22 +179,22 @@ func Test_Register_Command(t *testing.T) {
 		},
 		{
 			Description: "Send register command with bad credentials and receive receive error message",
-			Input:       "register 2 4 jane rooot\n",
+			Input:       "register 2 1 jane rooot\n",
 			Expected:    utils.MESSAGE.Error.AccessDenied,
 		},
 		{
 			Description: "Send register command with user already in job and receive error message",
-			Input:       "register 2 4 valentin root\n",
+			Input:       "register 2 1 valentin root\n",
 			Expected:    utils.MESSAGE.Error.AlreadyRegistered,
 		},
 		{
 			Description: "Send register command for job already full and receive error message",
-			Input:       "register 2 5 claude root\n",
+			Input:       "register 2 2 claude root\n",
 			Expected:    utils.MESSAGE.Error.JobFull,
 		},
 		{
 			Description: "Send register command as creator of event and receive error message",
-			Input:       "register 2 4 john root\n",
+			Input:       "register 2 1 john root\n",
 			Expected:    utils.MESSAGE.Error.CreatorRegister,
 		},
 		{
