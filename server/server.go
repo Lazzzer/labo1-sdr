@@ -23,7 +23,7 @@ import (
 )
 
 //go:embed entities.json
-var entities string
+var entities string // variable qui permet de charger le fichier des entités dans les binaries finales de l'application
 
 // Server est une structure permettant de gérer un serveur TCP.
 type Server struct {
@@ -31,6 +31,8 @@ type Server struct {
 	eChan  chan map[int]types.Event // Canal d'accès à la map contenant des manifestations
 	uChan  chan map[int]types.User  // Canal d'accès à la map contenant des utilisateurs
 }
+
+// ---------- Fonctions helpers ----------
 
 // getEntitiesFromChannel permet de récupérer une map de manifestations ou d'utilisateurs depuis un canal.
 //
@@ -51,29 +53,10 @@ func loadEntitiesToChannel[T types.Event | types.User](ch chan<- map[int]T, enti
 	s.debug(reflect.TypeOf(&entities).Elem().Elem().String(), false)
 }
 
-// Debug
-// func (s *Server) printDebug(title string) {
-// 	if !s.Config.Debug && !s.Config.Silent {
-// 		fmt.Println(title)
-
-// 		users := <-s.uChan
-// 		events := <-s.eChan
-
-// 		fmt.Print("\nUsers: ")
-// 		fmt.Println(users)
-// 		fmt.Print("\nEvents: ")
-// 		fmt.Println(events)
-// 		fmt.Println()
-
-// 		s.uChan <- users
-// 		s.eChan <- events
-// 	}
-// }
-
 // debug permet d'afficher des informations de debug si le mode debug est activé.
 //
 // La méthode ralentit artificiellement l'exécution du serveur pour tester les accès concurrents d'une durée égale à la propriété
-// DebugDelay de Config.
+// DebugDelay de Config. Le paramètre start indique s'il s'agit d'un début ou d'une fin d'accès à une section critique.
 func (s *Server) debug(entity string, start bool) {
 	if s.Config.Debug {
 		if start {
@@ -113,6 +96,10 @@ func (s *Server) removeUserInJob(idUser int, job *types.Job) bool {
 	return false
 }
 
+// addUserToJob permet d'ajouter un utilisateur à un job et retourne un message vide et true si l'opération a réussi.
+// En cas d'échec d'ajout, la méthode retourne un message d'erreur spécifique et false.
+//
+// Si un utilisateur est déjà dans un job de la même manifestation, sa postulation est supprimée et il est ajouté dans le nouveau job.
 func (s *Server) addUserToJob(event *types.Event, idJob, idUser int) (string, bool) {
 
 	job, ok := event.Jobs[idJob]
@@ -147,6 +134,8 @@ func (s *Server) addUserToJob(event *types.Event, idJob, idUser int) (string, bo
 	return "", true
 }
 
+// closeEvent permet de fermer une manifestation et retourne un message vide et true si l'opération a réussi.
+// En cas d'échec de fermeture, la méthode retourne un message d'erreur spécifique et false.
 func (s *Server) closeEvent(idEvent, idUser int) (string, bool) {
 	events := getEntitiesFromChannel(s.eChan, s)
 	defer loadEntitiesToChannel(s.eChan, events, s)
@@ -167,9 +156,12 @@ func (s *Server) closeEvent(idEvent, idUser int) (string, bool) {
 	return "", true
 }
 
+// checkNbArgs permet de vérifier le nombre d'arguments d'une commande et retourne un message vide et true si le nombre d'arguments est correct.
+// En cas d'échec de vérification, la méthode retourne un message d'erreur spécifique et false.
 func (s *Server) checkNbArgs(args []string, command *types.Command, optional bool) (string, bool) {
 	msg := utils.MESSAGE.Error.InvalidNbArgs
 	if optional {
+		// TODO: ne marche pas bien avec show et 2+ arguments
 		if len(args) < command.MinArgs || len(args)%command.MinOptArgs != 1 {
 			return msg, false
 		}
@@ -182,6 +174,7 @@ func (s *Server) checkNbArgs(args []string, command *types.Command, optional boo
 	return "", true
 }
 
+// showAllEvents permet d'afficher toutes les manifestations.
 func (s *Server) showAllEvents() string {
 	events := getEntitiesFromChannel(s.eChan, s)
 	users := getEntitiesFromChannel(s.uChan, s)
@@ -207,6 +200,8 @@ func (s *Server) showAllEvents() string {
 	return response
 }
 
+// showEvent permet d'afficher la manifestation correspondant à l'identifiant passé en paramètre et retourne un message vide et true
+// si l'opération a réussi. En cas d'échec d'affichage, la méthode retourne un message d'erreur spécifique et false.
 func (s *Server) showEvent(idEvent int) (string, bool) {
 	events := getEntitiesFromChannel(s.eChan, s)
 	defer loadEntitiesToChannel(s.eChan, events, s)
@@ -232,7 +227,9 @@ func (s *Server) showEvent(idEvent int) (string, bool) {
 	return utils.MESSAGE.Error.EventNotFound, false
 }
 
-// Functions of each command
+// ---------- Fonctions pour chaque commande ----------
+
+// help est la méthode appelée par la commande "help" et affiche un message d'aide listant chaque commande et ses arguments.
 func (s *Server) help(args []string) string {
 
 	if msg, ok := s.checkNbArgs(args, &utils.HELP, false); !ok {
@@ -242,6 +239,8 @@ func (s *Server) help(args []string) string {
 	return utils.MESSAGE.Help
 }
 
+// createEvent est la méthode appelée par la commande "create" et  permet de créer une manifestation et retourne un message de confirmation.
+// En cas d'échec de création, la méthode retourne un message d'erreur spécifique.
 func (s *Server) createEvent(args []string) string {
 
 	if msg, ok := s.checkNbArgs(args, &utils.CREATE, true); !ok {
@@ -295,6 +294,8 @@ func (s *Server) createEvent(args []string) string {
 	return utils.MESSAGE.WrapSuccess("Event #" + strconv.Itoa(eventId) + " " + newEvent.Name + " and " + strconv.Itoa(len(newJobs)) + " job(s)" + " created\n")
 }
 
+// closeEvent est la méthode appelée par la commande "close" et permet de fermer une manifestation et retourne un message de confirmation.
+// En cas d'échec de fermeture, la méthode retourne un message d'erreur spécifique.
 func (s *Server) close(args []string) string {
 
 	if msg, ok := s.checkNbArgs(args, &utils.CLOSE, false); !ok {
@@ -323,6 +324,8 @@ func (s *Server) close(args []string) string {
 	return utils.MESSAGE.WrapSuccess("Event #" + strconv.Itoa(idEvent) + " is closed.\n")
 }
 
+// register est la méthode appelée par la commande "register" et permet d'inscrire un utilisateur à un job d'une manifestation et retourne un message de confirmation.
+// En cas d'échec d'inscription, la méthode retourne un message d'erreur spécifique.
 func (s *Server) register(args []string) string {
 
 	if msg, ok := s.checkNbArgs(args, &utils.REGISTER, false); !ok {
@@ -366,6 +369,8 @@ func (s *Server) register(args []string) string {
 	return utils.MESSAGE.WrapSuccess("User registered in job #" + strconv.Itoa(idJob) + " for Event #" + strconv.Itoa(idEvent) + " " + event.Name + ".\n")
 }
 
+// show est la méthode appelée par la commande "show" et permet d'afficher les manifestations et leurs informations.
+// En passant un identifiant de manifestation en argument dans la commande, la méthode affiche les informations de la manifestation avec ses jobs.
 func (s *Server) show(args []string) string {
 
 	if len(args) == utils.SHOW.MinOptArgs {
@@ -380,6 +385,7 @@ func (s *Server) show(args []string) string {
 	}
 }
 
+// jobs est la méthode appelée par la commande "jobs" et permet d'afficher la répartition des bénévoles et des jobs d'une manifestation.
 func (s *Server) jobs(args []string) string {
 	if msg, ok := s.checkNbArgs(args, &utils.JOBS, false); !ok {
 		return msg
@@ -420,7 +426,8 @@ func (s *Server) jobs(args []string) string {
 	return response + "\n"
 }
 
-// Command processing
+// processCommand permet de traiter l'entrée utilisateur et de lancer la méthode correspondante à la commande saisie.
+// La méthode notifie au serveur l'arrêt de sa boucle de traitement des commandes lorsque la commande "quit" est saisie.
 func (s *Server) processCommand(command string) (string, bool) {
 	args := strings.Fields(command)
 
@@ -456,6 +463,7 @@ func (s *Server) processCommand(command string) (string, bool) {
 	return response, end
 }
 
+// handleConn gère l'I/O avec un client connecté au serveur
 func (s *Server) handleConn(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	for {
@@ -483,7 +491,9 @@ func (s *Server) handleConn(conn net.Conn) {
 	conn.Close()
 }
 
-// /
+// Run lance le serveur et attend les connexions des clients.
+//
+// Chaque connexion est ensuite gérée par une goroutine jusqu'à sa fermeture.
 func (s *Server) Run() {
 
 	users, events := utils.GetEntities(entities)
