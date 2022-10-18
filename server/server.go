@@ -171,13 +171,16 @@ func (s *Server) checkNbArgs(args []string, command *types.Command, optional boo
 
 func (s *Server) showAllEvents() string {
 	events := getEntitiesFromChannel(s.eChan, s)
+	users := getEntitiesFromChannel(s.uChan, s)
 	defer loadEntitiesToChannel(s.eChan, events, s)
+	defer loadEntitiesToChannel(s.uChan, users, s)
 
 	response := "Events:\n"
 
 	for i := 1; i <= len(events); i++ {
 		event := events[i]
-		response += "#" + strconv.Itoa(i) + ": " + event.Name + " (creator: " + strconv.Itoa(event.CreatorId) + ")\n"
+		creator, _ := users[i]
+		response += "#" + strconv.Itoa(i) + ": " + event.Name + " (creator: " + creator.Username + ")\n"
 	}
 
 	return response
@@ -190,7 +193,10 @@ func (s *Server) showEvent(idEvent int) (string, bool) {
 	event, ok := events[idEvent]
 
 	if ok {
-		response := "#" + strconv.Itoa(idEvent) + ": " + event.Name + " (creator: #" + strconv.Itoa(event.CreatorId) + ")\n"
+		users := getEntitiesFromChannel(s.uChan, s)
+		defer loadEntitiesToChannel(s.uChan, users, s)
+		creator, _ := users[event.CreatorId]
+		response := "#" + strconv.Itoa(idEvent) + ": " + event.Name + " (creator: " + creator.Username + ")\n"
 		response += "Jobs:\n"
 
 		jobs := getEntitiesFromChannel(s.jChan, s)
@@ -199,7 +205,7 @@ func (s *Server) showEvent(idEvent int) (string, bool) {
 		for i := 1; i <= len(jobs); i++ {
 			job := jobs[i]
 			if job.EventId == idEvent {
-				response += "Job " + strconv.Itoa(i) + ": " + job.Name + " (creator: " + strconv.Itoa(job.CreatorId) + ")\n"
+				response += "Job " + strconv.Itoa(i) + ": " + job.Name + "\n"
 			}
 		}
 
