@@ -180,23 +180,23 @@ func (s *Server) showAllEvents() string {
 	defer loadEntitiesToChannel(s.eChan, events, s)
 	defer loadEntitiesToChannel(s.uChan, users, s)
 
-	response := "Events:\n"
+	var response string
 
 	for i := 1; i <= len(events); i++ {
 		event := events[i]
 		creator := users[event.CreatorId]
 		if event.Closed {
-			response += "#" + strconv.Itoa(i) + ": " + event.Name + " (creator: " + creator.Username + ")" +
-				utils.RED + " Closed" + utils.RESET + "\n"
+			response += utils.RED + "Closed" + utils.RESET
 		} else {
-			response += "#" + strconv.Itoa(i) + ": " + event.Name + " (creator: " + creator.Username + ")" +
-				utils.GREEN + " Open" + utils.RESET + "\n"
+			response += utils.GREEN + "Open" + utils.RESET
 		}
-
+		response += "\t#" + strconv.Itoa(i) + " " + utils.BOLD + utils.CYAN + event.Name + utils.RESET + " / Creator: " + creator.Username + "\n"
+		if i != len(events) {
+			response += "\n"
+		}
 	}
-	response += "\n"
 
-	return response
+	return utils.MESSAGE.WrapEvent(response)
 }
 
 // showEvent permet d'afficher la manifestation correspondant à l'identifiant passé en paramètre et retourne un message vide et true

@@ -216,10 +216,10 @@ func Test_Show_Command(t *testing.T) {
 }
 
 func Test_Commands_Concurrently(t *testing.T) {
-	var show = "Events:\n"
-	show += "#1: Montreux Jazz 2022 (creator: 5)\n"
-	show += "#2: Baleinev 2023 (creator: 6)\n"
-	show += "#3: Balélec 2023 (creator: 7)\n"
+
+	var message = utils.RED + "Closed" + utils.RESET + "\t#1 " + utils.BOLD + utils.CYAN + "Montreux Jazz 2022" + utils.RESET + " / Creator: claude\n\n" +
+		utils.GREEN + "Open" + utils.RESET + "\t#2 " + utils.BOLD + utils.CYAN + "Baleinev 2023" + utils.RESET + " / Creator: john\n\n" +
+		utils.GREEN + "Open" + utils.RESET + "\t#3 " + utils.BOLD + utils.CYAN + "Balélec 2023" + utils.RESET + " / Creator: jane\n"
 
 	tests := []TestInput{
 		{
@@ -230,7 +230,7 @@ func Test_Commands_Concurrently(t *testing.T) {
 		{
 			Description: "Send show command and receive message",
 			Input:       "show\n",
-			Expected:    show,
+			Expected:    utils.MESSAGE.WrapEvent(message),
 		},
 	}
 
