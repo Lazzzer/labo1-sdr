@@ -101,6 +101,40 @@ func Test_Help_Command(t *testing.T) {
 	testClient.Run(tests, t)
 }
 
+func Test_Show_Command(t *testing.T) {
+	testClient := TestClient{Config: testingConfig}
+
+	var showAll = utils.RED + "Closed" + utils.RESET + "\t#1 " + utils.BOLD + utils.CYAN + "Montreux Jazz 2022" + utils.RESET + " / Creator: claude\n\n" +
+		utils.GREEN + "Open" + utils.RESET + "\t#2 " + utils.BOLD + utils.CYAN + "Baleinev 2023" + utils.RESET + " / Creator: john\n\n" +
+		utils.GREEN + "Open" + utils.RESET + "\t#3 " + utils.BOLD + utils.CYAN + "Balélec 2023" + utils.RESET + " / Creator: jane\n"
+
+	var showFirstEvent = "\x1b[36m\n====================== 📅 EVENT 📅 ===========================\n\n\x1b[0m#1 \x1b[1m\x1b[36mMontreux Jazz 2022\x1b[0m\n\nCreator: claude\n\n🦺\x1b[1m Jobs\x1b[0m\n\n\x1b[32m(1/4)\x1b[0m\tJob #1: Montage\n\x1b[32m(2/10)\x1b[0m\tJob #2: Stands\n\x1b[31m(2/2)\x1b[0m\tJob #3: Sécurité\n\n\x1b[36m==============================================================\x1b[0m\n\n"
+
+	tests := []TestInput{
+		{
+			Description: "Send show command and receive all events",
+			Input:       "show\n",
+			Expected:    utils.MESSAGE.WrapEvent(showAll),
+		},
+		{
+			Description: "Send show command with id of first event and receive that event",
+			Input:       "show 1\n",
+			Expected:    showFirstEvent,
+		},
+		{
+			Description: "Send invalid show command and receive error message",
+			Input:       "showw\n",
+			Expected:    utils.MESSAGE.Error.InvalidCommand,
+		},
+		{
+			Description: "Send show command with invalid nb of args and receive error message",
+			Input:       "show 1 1 1\n",
+			Expected:    utils.MESSAGE.Error.InvalidCommand,
+		},
+	}
+	testClient.Run(tests, t)
+}
+
 func Test_Create_Command(t *testing.T) {
 	// TODO
 }
@@ -209,10 +243,6 @@ func Test_Register_Command(t *testing.T) {
 		},
 	}
 	testClient.Run(tests, t)
-}
-
-func Test_Show_Command(t *testing.T) {
-	// TODO
 }
 
 func Test_Commands_Concurrently(t *testing.T) {
