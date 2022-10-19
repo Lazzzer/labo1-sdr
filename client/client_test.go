@@ -37,7 +37,7 @@ func (tc *TestClient) Run(tests []TestInput, t *testing.T) {
 	conn, err := net.Dial("tcp", tc.Config.Host+":"+strconv.Itoa(tc.Config.Port))
 
 	if err != nil {
-		t.Error("Error: could not connect to server")
+		t.Error(utils.RED + "FAIL: " + utils.RESET + "Error: could not connect to server")
 		return
 	}
 
@@ -45,7 +45,7 @@ func (tc *TestClient) Run(tests []TestInput, t *testing.T) {
 
 	for _, test := range tests {
 		if _, err := conn.Write([]byte(test.Input)); err != nil {
-			t.Error("Error: could not write to server")
+			t.Error(utils.RED + "FAIL: " + utils.RESET + "Error: could not write to server")
 		}
 
 		out := make([]byte, 2048)
@@ -56,13 +56,13 @@ func (tc *TestClient) Run(tests []TestInput, t *testing.T) {
 				fmt.Println(utils.GREEN + "PASS: " + utils.RESET + test.Description)
 			}
 		} else {
-			t.Error("Error: could not read from connection")
+			t.Error(utils.RED + "FAIL: " + utils.RESET + "Error: could not read from connection")
 		}
 
 	}
 
 	if _, err := conn.Write([]byte("quit\n")); err != nil {
-		t.Error("Error: could not quit the server properly")
+		t.Error(utils.RED + "FAIL: " + utils.RESET + "Error: could not quit the server properly")
 	}
 }
 
@@ -122,13 +122,13 @@ func Test_Show_Command(t *testing.T) {
 			Expected:    showFirstEvent,
 		},
 		{
-			Description: "Send invalid show command and receive error message",
-			Input:       "showw\n",
+			Description: "Send show command with invalid nb of args and receive error message",
+			Input:       "show 1 1 1\n",
 			Expected:    utils.MESSAGE.Error.InvalidCommand,
 		},
 		{
-			Description: "Send show command with invalid nb of args and receive error message",
-			Input:       "show 1 1 1\n",
+			Description: "Send invalid show command and receive error message",
+			Input:       "showw\n",
 			Expected:    utils.MESSAGE.Error.InvalidCommand,
 		},
 	}
@@ -136,7 +136,40 @@ func Test_Show_Command(t *testing.T) {
 }
 
 func Test_Create_Command(t *testing.T) {
-	// TODO
+	testClient := TestClient{Config: testingConfig}
+	tests := []TestInput{
+		{
+			Description: "Send create command for event with one job and receive confirmation message",
+			Input:       "create Test TestJob 1 lazar root\n",
+			Expected:    utils.MESSAGE.WrapSuccess("Event #4 Test and 1 job(s) created\n"),
+		},
+		{
+			Description: "Send create command for event with 3 jobs and receive confirmation message",
+			Input:       "create Test TestJob 1 TestJob2 1 TestJob3 1 lazar root\n",
+			Expected:    utils.MESSAGE.WrapSuccess("Event #5 Test and 3 job(s) created\n"),
+		},
+		{
+			Description: "Send create command with invalid nb of args and receive error message",
+			Input:       "create Test lazar root\n",
+			Expected:    utils.MESSAGE.Error.InvalidNbArgs,
+		},
+		{
+			Description: "Send create command with invalid nb of volunteers and receive error message",
+			Input:       "create Test TestJob Invalid lazar root\n",
+			Expected:    utils.MESSAGE.Error.NbVolunteersInteger,
+		},
+		{
+			Description: "Send create command with invalid credentials and receive error message",
+			Input:       "create Test TestJob 1 lazar rooooot\n",
+			Expected:    utils.MESSAGE.Error.AccessDenied,
+		},
+		{
+			Description: "Send invalid create command and receive error message",
+			Input:       "createe\n",
+			Expected:    utils.MESSAGE.Error.InvalidCommand,
+		},
+	}
+	testClient.Run(tests, t)
 }
 
 func Test_Close_Command(t *testing.T) {
