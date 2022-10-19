@@ -25,214 +25,112 @@ import (
 //go:embed entities.json
 var entities string // variable qui permet de charger le fichier des entités dans les binaries finales de l'application
 
-// Server est une structure permettant de gérer un serveur TCP.
+// Server est une struct représentant un serveur TCP.
 type Server struct {
 	Config types.Config             // Configuration du serveur
 	eChan  chan map[int]types.Event // Canal d'accès à la map contenant des manifestations
 	uChan  chan map[int]types.User  // Canal d'accès à la map contenant des utilisateurs
 }
 
-// ---------- Fonctions helpers ----------
-
-// getEntitiesFromChannel permet de récupérer une map de manifestations ou d'utilisateurs depuis un canal.
+// Run lance le serveur et attend les connexions des clients.
 //
-// En mode debug, le serveur attend un certain laps de temps et log l'accès à la section critique en question avant de retourner l'entité.
-func getEntitiesFromChannel[T types.Event | types.User](ch <-chan map[int]T, s *Server) map[int]T {
-	entities := <-ch
-	s.debug(reflect.TypeOf(&entities).Elem().Elem().String(), true)
+// Chaque connexion est ensuite gérée par une goroutine jusqu'à sa fermeture.
+func (s *Server) Run() {
 
-	return entities
-}
+	users, events := utils.GetEntities(entities)
 
-// loadEntitiesToChannel permet de charger une map de manifestations ou d'utilisateurs dans un canal.
-//
-// En mode debug, le serveur attend un certain laps de temps et log l'accès à la section critique en question avant de laisser l'exécution
-// se poursuivre.
-func loadEntitiesToChannel[T types.Event | types.User](ch chan<- map[int]T, entities map[int]T, s *Server) {
-	ch <- entities
-	s.debug(reflect.TypeOf(&entities).Elem().Elem().String(), false)
-}
+	listener, err := net.Listen("tcp", ":"+strconv.Itoa(s.Config.Port))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer listener.Close()
 
-// debug permet d'afficher des informations de debug si le mode debug est activé.
-//
-// La méthode ralentit artificiellement l'exécution du serveur pour tester les accès concurrents d'une durée égale à la propriété
-// DebugDelay de Config. Le paramètre start indique s'il s'agit d'un début ou d'une fin d'accès à une section critique.
-func (s *Server) debug(entity string, start bool) {
-	if s.Config.Debug {
-		if start {
-			log.Println(utils.ORANGE + "(DEBUG) " + utils.RED + "ACCESSING" + utils.ORANGE + " shared section for entity: " + entity + utils.RESET)
-			time.Sleep(time.Duration(s.Config.DebugDelay) * time.Second)
+	s.eChan = make(chan map[int]types.Event, 1)
+	s.uChan = make(chan map[int]types.User, 1)
+
+	s.uChan <- users
+	s.eChan <- events
+
+	if !s.Config.Silent {
+		log.Println(utils.GREEN + "(INFO) " + "Server started on port " + strconv.Itoa(s.Config.Port) + utils.RESET)
+	}
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Println(utils.RED + "(ERROR) " + err.Error() + utils.RESET)
+			return
 		} else {
-			log.Println(utils.ORANGE + "(DEBUG) " + utils.GREEN + "RELEASING" + utils.ORANGE + " shared section for entity: " + entity + utils.RESET)
-		}
-	}
-}
-
-// verifyUser permet de vérifier si un utilisateur existe dans la map des utilisateurs et retourne sa clé dans la map et un booléen
-// indiquant sa présence.
-func (s *Server) verifyUser(username, password string) (int, bool) {
-	users := getEntitiesFromChannel(s.uChan, s)
-	defer loadEntitiesToChannel(s.uChan, users, s)
-
-	for key, user := range users {
-		if user.Username == username && user.Password == password {
-			return key, true
-		}
-	}
-
-	return 0, false
-}
-
-// removeUserInJob permet de supprimer l'id d'un utilisateur du tableau des utilisateurs qui ont postulé à un job et retourne si l'opération
-// a réussi.
-func (s *Server) removeUserInJob(idUser int, job *types.Job) bool {
-	for i, volunteerId := range job.VolunteerIds {
-		if volunteerId == idUser {
-			job.VolunteerIds[i] = job.VolunteerIds[len(job.VolunteerIds)-1]
-			job.VolunteerIds = job.VolunteerIds[:len(job.VolunteerIds)-1]
-			return true
-		}
-	}
-	return false
-}
-
-// addUserToJob permet d'ajouter un utilisateur à un job et retourne un message vide et true si l'opération a réussi.
-// En cas d'échec d'ajout, la méthode retourne un message d'erreur spécifique et false.
-//
-// Si un utilisateur est déjà dans un job de la même manifestation, sa postulation est supprimée et il est ajouté dans le nouveau job.
-func (s *Server) addUserToJob(event *types.Event, idJob, idUser int) (string, bool) {
-
-	job, ok := event.Jobs[idJob]
-
-	if ok {
-		// Différentes vérifications selon le cahier des charges avec les messages d'erreur correspondants
-		if event.CreatorId == idUser {
-			return utils.MESSAGE.Error.CreatorRegister, false
-		} else if len(job.VolunteerIds) == job.NbVolunteers {
-			return utils.MESSAGE.Error.JobFull, false
-		} else {
-			for _, id := range job.VolunteerIds {
-				if id == idUser {
-					return utils.MESSAGE.Error.AlreadyRegistered, false
-				}
+			if !s.Config.Silent {
+				log.Println(utils.GREEN + "(INFO) " + conn.RemoteAddr().String() + " connected" + utils.RESET)
 			}
 		}
+		go s.handleConn(conn)
+	}
+}
 
-		// Suppression de l'utilisateur dans un job de la manifestation
-		for exploredJobId, exploredJob := range event.Jobs {
-			if s.removeUserInJob(idUser, &exploredJob) {
-				event.Jobs[exploredJobId] = exploredJob
+// handleConn gère l'I/O avec un client connecté au serveur
+func (s *Server) handleConn(conn net.Conn) {
+	reader := bufio.NewReader(conn)
+	for {
+		input, err := reader.ReadString('\n')
+
+		if err != nil {
+			log.Println(utils.RED + "(ERROR) " + err.Error() + utils.RESET)
+			break
+		}
+
+		if !s.Config.Silent {
+			log.Print(utils.YELLOW + "(INFO) " + conn.RemoteAddr().String() + " -> " + strings.TrimSuffix(input, "\n") + utils.RESET)
+		}
+		response, end := s.processCommand(strings.TrimSpace(string(input)))
+
+		if end {
+			if !s.Config.Silent {
+				log.Println(utils.RED + "(INFO) " + conn.RemoteAddr().String() + " disconnected" + utils.RESET)
 			}
+			break
 		}
-		// Ajout de l'utilisateur dans son nouveau job
-		job.VolunteerIds = append(job.VolunteerIds, idUser)
-		event.Jobs[idJob] = job
-	} else {
-		return utils.MESSAGE.Error.JobNotFound, false
-	}
 
-	return "", true
+		conn.Write([]byte(response))
+	}
+	conn.Close()
 }
 
-// closeEvent permet de fermer une manifestation et retourne un message vide et true si l'opération a réussi.
-// En cas d'échec de fermeture, la méthode retourne un message d'erreur spécifique et false.
-func (s *Server) closeEvent(idEvent, idUser int) (string, bool) {
-	events := getEntitiesFromChannel(s.eChan, s)
-	defer loadEntitiesToChannel(s.eChan, events, s)
+// processCommand permet de traiter l'entrée utilisateur et de lancer la méthode correspondante à la commande saisie.
+// La méthode notifie au serveur l'arrêt de sa boucle de traitement des commandes lorsque la commande "quit" est saisie.
+func (s *Server) processCommand(command string) (string, bool) {
+	args := strings.Fields(command)
 
-	event, okEvent := events[idEvent]
-
-	if !okEvent {
-		return utils.MESSAGE.Error.EventNotFound, false
-	} else if event.CreatorId != idUser {
-		return utils.MESSAGE.Error.NotCreator, false
-	} else if event.Closed {
-		return utils.MESSAGE.Error.AlreadyClosed, false
-	} else {
-		event.Closed = true
-		events[idEvent] = event
+	if len(args) == 0 {
+		return "Empty command", false
 	}
-
-	return "", true
-}
-
-// checkNbArgs permet de vérifier le nombre d'arguments d'une commande et retourne un message vide et true si le nombre d'arguments est correct.
-// En cas d'échec de vérification, la méthode retourne un message d'erreur spécifique et false.
-func (s *Server) checkNbArgs(args []string, command *types.Command, optional bool) (string, bool) {
-	msg := utils.MESSAGE.Error.InvalidNbArgs
-	if optional {
-		if len(args) < command.MinArgs || len(args)%command.MinOptArgs != 1 {
-			return msg, false
-		}
-	} else {
-		if len(args) != command.MinArgs && len(args)%command.MinOptArgs != 1 {
-			return msg, false
-		}
-	}
-
-	return "", true
-}
-
-// showAllEvents permet d'afficher toutes les manifestations.
-func (s *Server) showAllEvents() string {
-	events := getEntitiesFromChannel(s.eChan, s)
-	users := getEntitiesFromChannel(s.uChan, s)
-	defer loadEntitiesToChannel(s.eChan, events, s)
-	defer loadEntitiesToChannel(s.uChan, users, s)
 
 	var response string
 
-	for i := 1; i <= len(events); i++ {
-		event := events[i]
-		creator := users[event.CreatorId]
-		if event.Closed {
-			response += utils.RED + "Closed" + utils.RESET
-		} else {
-			response += utils.GREEN + "Open" + utils.RESET
-		}
-		response += "\t#" + strconv.Itoa(i) + " " + utils.BOLD + utils.CYAN + event.Name + utils.RESET + " / Creator: " + creator.Username + "\n"
-		if i != len(events) {
-			response += "\n"
-		}
+	name := args[0]
+	args = args[1:]
+	end := false
+
+	switch name {
+	case utils.HELP.Name:
+		response = s.help(args)
+	case utils.CREATE.Name:
+		response = s.createEvent(args)
+	case utils.CLOSE.Name:
+		response = s.close(args)
+	case utils.REGISTER.Name:
+		response = s.register(args)
+	case utils.SHOW.Name:
+		response = s.show(args)
+	case utils.JOBS.Name:
+		response = s.jobs(args)
+	case utils.QUIT.Name:
+		end = true
+	default:
+		response = utils.MESSAGE.Error.InvalidCommand
 	}
 
-	return utils.MESSAGE.WrapEvent(response)
-}
-
-// showEvent permet d'afficher la manifestation correspondant à l'identifiant passé en paramètre et retourne un message vide et true
-// si l'opération a réussi. En cas d'échec d'affichage, la méthode retourne un message d'erreur spécifique et false.
-func (s *Server) showEvent(idEvent int) (string, bool) {
-	events := getEntitiesFromChannel(s.eChan, s)
-	defer loadEntitiesToChannel(s.eChan, events, s)
-
-	event, ok := events[idEvent]
-
-	if ok {
-		users := getEntitiesFromChannel(s.uChan, s)
-		defer loadEntitiesToChannel(s.uChan, users, s)
-		creator := users[event.CreatorId]
-
-		response := "#" + strconv.Itoa(idEvent) + " " + utils.BOLD + utils.CYAN + event.Name + utils.RESET + "\n\n"
-		response += "Creator: " + creator.Username + "\n\n"
-		response += "🦺" + utils.BOLD + " Jobs" + utils.RESET + "\n\n"
-
-		for i := 1; i <= len(event.Jobs); i++ {
-			job := event.Jobs[i]
-
-			var color string
-			if len(job.VolunteerIds) == job.NbVolunteers {
-				color = utils.RED
-			} else {
-				color = utils.GREEN
-			}
-
-			response += color + "(" + strconv.Itoa(len(job.VolunteerIds)) + "/" + strconv.Itoa(job.NbVolunteers) + ")" + utils.RESET + "\tJob #" + strconv.Itoa(i) + ": " + job.Name + "\n"
-		}
-
-		return utils.MESSAGE.WrapEvent(response), true
-	}
-
-	return utils.MESSAGE.Error.EventNotFound, false
+	return response, end
 }
 
 // ---------- Fonctions pour chaque commande ----------
@@ -437,103 +335,205 @@ func (s *Server) jobs(args []string) string {
 	return response + "\n"
 }
 
-// processCommand permet de traiter l'entrée utilisateur et de lancer la méthode correspondante à la commande saisie.
-// La méthode notifie au serveur l'arrêt de sa boucle de traitement des commandes lorsque la commande "quit" est saisie.
-func (s *Server) processCommand(command string) (string, bool) {
-	args := strings.Fields(command)
+// ---------- Fonctions helpers ----------
 
-	if len(args) == 0 {
-		return "Empty command", false
+// getEntitiesFromChannel permet de récupérer une map de manifestations ou d'utilisateurs depuis un canal.
+//
+// En mode debug, le serveur attend un certain laps de temps et log l'accès à la section critique en question avant de retourner l'entité.
+func getEntitiesFromChannel[T types.Event | types.User](ch <-chan map[int]T, s *Server) map[int]T {
+	entities := <-ch
+	s.debug(reflect.TypeOf(&entities).Elem().Elem().String(), true)
+
+	return entities
+}
+
+// loadEntitiesToChannel permet de charger une map de manifestations ou d'utilisateurs dans un canal.
+//
+// En mode debug, le serveur attend un certain laps de temps et log l'accès à la section critique en question avant de laisser l'exécution
+// se poursuivre.
+func loadEntitiesToChannel[T types.Event | types.User](ch chan<- map[int]T, entities map[int]T, s *Server) {
+	ch <- entities
+	s.debug(reflect.TypeOf(&entities).Elem().Elem().String(), false)
+}
+
+// debug permet d'afficher des informations de debug si le mode debug est activé.
+//
+// La méthode ralentit artificiellement l'exécution du serveur pour tester les accès concurrents d'une durée égale à la propriété
+// DebugDelay de Config. Le paramètre start indique s'il s'agit d'un début ou d'une fin d'accès à une section critique.
+func (s *Server) debug(entity string, start bool) {
+	if s.Config.Debug {
+		if start {
+			log.Println(utils.ORANGE + "(DEBUG) " + utils.RED + "ACCESSING" + utils.ORANGE + " shared section for entity: " + entity + utils.RESET)
+			time.Sleep(time.Duration(s.Config.DebugDelay) * time.Second)
+		} else {
+			log.Println(utils.ORANGE + "(DEBUG) " + utils.GREEN + "RELEASING" + utils.ORANGE + " shared section for entity: " + entity + utils.RESET)
+		}
 	}
+}
+
+// verifyUser permet de vérifier si un utilisateur existe dans la map des utilisateurs et retourne sa clé dans la map et un booléen
+// indiquant sa présence.
+func (s *Server) verifyUser(username, password string) (int, bool) {
+	users := getEntitiesFromChannel(s.uChan, s)
+	defer loadEntitiesToChannel(s.uChan, users, s)
+
+	for key, user := range users {
+		if user.Username == username && user.Password == password {
+			return key, true
+		}
+	}
+
+	return 0, false
+}
+
+// removeUserInJob permet de supprimer l'id d'un utilisateur du tableau des utilisateurs qui ont postulé à un job et retourne si l'opération
+// a réussi.
+func (s *Server) removeUserInJob(idUser int, job *types.Job) bool {
+	for i, volunteerId := range job.VolunteerIds {
+		if volunteerId == idUser {
+			job.VolunteerIds[i] = job.VolunteerIds[len(job.VolunteerIds)-1]
+			job.VolunteerIds = job.VolunteerIds[:len(job.VolunteerIds)-1]
+			return true
+		}
+	}
+	return false
+}
+
+// addUserToJob permet d'ajouter un utilisateur à un job et retourne un message vide et true si l'opération a réussi.
+// En cas d'échec d'ajout, la méthode retourne un message d'erreur spécifique et false.
+//
+// Si un utilisateur est déjà dans un job de la même manifestation, sa postulation est supprimée et il est ajouté dans le nouveau job.
+func (s *Server) addUserToJob(event *types.Event, idJob, idUser int) (string, bool) {
+
+	job, ok := event.Jobs[idJob]
+
+	if ok {
+		// Différentes vérifications selon le cahier des charges avec les messages d'erreur correspondants
+		if event.CreatorId == idUser {
+			return utils.MESSAGE.Error.CreatorRegister, false
+		} else if len(job.VolunteerIds) == job.NbVolunteers {
+			return utils.MESSAGE.Error.JobFull, false
+		} else {
+			for _, id := range job.VolunteerIds {
+				if id == idUser {
+					return utils.MESSAGE.Error.AlreadyRegistered, false
+				}
+			}
+		}
+
+		// Suppression de l'utilisateur dans un job de la manifestation
+		for exploredJobId, exploredJob := range event.Jobs {
+			if s.removeUserInJob(idUser, &exploredJob) {
+				event.Jobs[exploredJobId] = exploredJob
+			}
+		}
+		// Ajout de l'utilisateur dans son nouveau job
+		job.VolunteerIds = append(job.VolunteerIds, idUser)
+		event.Jobs[idJob] = job
+	} else {
+		return utils.MESSAGE.Error.JobNotFound, false
+	}
+
+	return "", true
+}
+
+// closeEvent permet de fermer une manifestation et retourne un message vide et true si l'opération a réussi.
+// En cas d'échec de fermeture, la méthode retourne un message d'erreur spécifique et false.
+func (s *Server) closeEvent(idEvent, idUser int) (string, bool) {
+	events := getEntitiesFromChannel(s.eChan, s)
+	defer loadEntitiesToChannel(s.eChan, events, s)
+
+	event, okEvent := events[idEvent]
+
+	if !okEvent {
+		return utils.MESSAGE.Error.EventNotFound, false
+	} else if event.CreatorId != idUser {
+		return utils.MESSAGE.Error.NotCreator, false
+	} else if event.Closed {
+		return utils.MESSAGE.Error.AlreadyClosed, false
+	} else {
+		event.Closed = true
+		events[idEvent] = event
+	}
+
+	return "", true
+}
+
+// checkNbArgs permet de vérifier le nombre d'arguments d'une commande et retourne un message vide et true si le nombre d'arguments est correct.
+// En cas d'échec de vérification, la méthode retourne un message d'erreur spécifique et false.
+func (s *Server) checkNbArgs(args []string, command *types.Command, optional bool) (string, bool) {
+	msg := utils.MESSAGE.Error.InvalidNbArgs
+	if optional {
+		if len(args) < command.MinArgs || len(args)%command.MinOptArgs != 1 {
+			return msg, false
+		}
+	} else {
+		if len(args) != command.MinArgs && len(args)%command.MinOptArgs != 1 {
+			return msg, false
+		}
+	}
+
+	return "", true
+}
+
+// showAllEvents permet d'afficher toutes les manifestations.
+func (s *Server) showAllEvents() string {
+	events := getEntitiesFromChannel(s.eChan, s)
+	users := getEntitiesFromChannel(s.uChan, s)
+	defer loadEntitiesToChannel(s.eChan, events, s)
+	defer loadEntitiesToChannel(s.uChan, users, s)
 
 	var response string
 
-	name := args[0]
-	args = args[1:]
-	end := false
-
-	switch name {
-	case utils.HELP.Name:
-		response = s.help(args)
-	case utils.CREATE.Name:
-		response = s.createEvent(args)
-	case utils.CLOSE.Name:
-		response = s.close(args)
-	case utils.REGISTER.Name:
-		response = s.register(args)
-	case utils.SHOW.Name:
-		response = s.show(args)
-	case utils.JOBS.Name:
-		response = s.jobs(args)
-	case utils.QUIT.Name:
-		end = true
-	default:
-		response = utils.MESSAGE.Error.InvalidCommand
-	}
-
-	return response, end
-}
-
-// handleConn gère l'I/O avec un client connecté au serveur
-func (s *Server) handleConn(conn net.Conn) {
-	reader := bufio.NewReader(conn)
-	for {
-		input, err := reader.ReadString('\n')
-
-		if err != nil {
-			log.Println(utils.RED + "(ERROR) " + err.Error() + utils.RESET)
-			break
-		}
-
-		if !s.Config.Silent {
-			log.Print(utils.YELLOW + "(INFO) " + conn.RemoteAddr().String() + " -> " + strings.TrimSuffix(input, "\n") + utils.RESET)
-		}
-		response, end := s.processCommand(strings.TrimSpace(string(input)))
-
-		if end {
-			if !s.Config.Silent {
-				log.Println(utils.RED + "(INFO) " + conn.RemoteAddr().String() + " disconnected" + utils.RESET)
-			}
-			break
-		}
-
-		conn.Write([]byte(response))
-	}
-	conn.Close()
-}
-
-// Run lance le serveur et attend les connexions des clients.
-//
-// Chaque connexion est ensuite gérée par une goroutine jusqu'à sa fermeture.
-func (s *Server) Run() {
-
-	users, events := utils.GetEntities(entities)
-
-	listener, err := net.Listen("tcp", ":"+strconv.Itoa(s.Config.Port))
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer listener.Close()
-
-	s.eChan = make(chan map[int]types.Event, 1)
-	s.uChan = make(chan map[int]types.User, 1)
-
-	s.uChan <- users
-	s.eChan <- events
-
-	if !s.Config.Silent {
-		log.Println(utils.GREEN + "(INFO) " + "Server started on port " + strconv.Itoa(s.Config.Port) + utils.RESET)
-	}
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			log.Println(utils.RED + "(ERROR) " + err.Error() + utils.RESET)
-			return
+	for i := 1; i <= len(events); i++ {
+		event := events[i]
+		creator := users[event.CreatorId]
+		if event.Closed {
+			response += utils.RED + "Closed" + utils.RESET
 		} else {
-			if !s.Config.Silent {
-				log.Println(utils.GREEN + "(INFO) " + conn.RemoteAddr().String() + " connected" + utils.RESET)
-			}
+			response += utils.GREEN + "Open" + utils.RESET
 		}
-		go s.handleConn(conn)
+		response += "\t#" + strconv.Itoa(i) + " " + utils.BOLD + utils.CYAN + event.Name + utils.RESET + " / Creator: " + creator.Username + "\n"
+		if i != len(events) {
+			response += "\n"
+		}
 	}
+
+	return utils.MESSAGE.WrapEvent(response)
+}
+
+// showEvent permet d'afficher la manifestation correspondant à l'identifiant passé en paramètre et retourne un message vide et true
+// si l'opération a réussi. En cas d'échec d'affichage, la méthode retourne un message d'erreur spécifique et false.
+func (s *Server) showEvent(idEvent int) (string, bool) {
+	events := getEntitiesFromChannel(s.eChan, s)
+	defer loadEntitiesToChannel(s.eChan, events, s)
+
+	event, ok := events[idEvent]
+
+	if ok {
+		users := getEntitiesFromChannel(s.uChan, s)
+		defer loadEntitiesToChannel(s.uChan, users, s)
+		creator := users[event.CreatorId]
+
+		response := "#" + strconv.Itoa(idEvent) + " " + utils.BOLD + utils.CYAN + event.Name + utils.RESET + "\n\n"
+		response += "Creator: " + creator.Username + "\n\n"
+		response += "🦺" + utils.BOLD + " Jobs" + utils.RESET + "\n\n"
+
+		for i := 1; i <= len(event.Jobs); i++ {
+			job := event.Jobs[i]
+
+			var color string
+			if len(job.VolunteerIds) == job.NbVolunteers {
+				color = utils.RED
+			} else {
+				color = utils.GREEN
+			}
+
+			response += color + "(" + strconv.Itoa(len(job.VolunteerIds)) + "/" + strconv.Itoa(job.NbVolunteers) + ")" + utils.RESET + "\tJob #" + strconv.Itoa(i) + ": " + job.Name + "\n"
+		}
+
+		return utils.MESSAGE.WrapEvent(response), true
+	}
+
+	return utils.MESSAGE.Error.EventNotFound, false
 }
