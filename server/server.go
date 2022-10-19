@@ -11,11 +11,13 @@ package server
 import (
 	"bufio"
 	_ "embed"
+	"fmt"
 	"log"
 	"net"
 	"reflect"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/Lazzzer/labo1-sdr/utils"
@@ -312,27 +314,47 @@ func (s *Server) jobs(args []string) string {
 	}
 
 	users := getEntitiesFromChannel(s.uChan, s)
-	defer loadEntitiesToChannel(s.uChan, users, s)
 
-	response := "#" + strconv.Itoa(idEvent) + " " + event.Name + ":\n"
-	suffix := ""
-	var allUsersWorking []string
+	eventTitle := "#" + strconv.Itoa(idEvent) + " " + event.Name + ":\n\n"
+	firstLine := "Volunteers\t"
+	numberOfUsers := 0
+	allUsersWorking := make([][]string, len(event.Jobs))
 	for i := 1; i <= len(event.Jobs); i++ {
 		job := event.Jobs[i]
-		response += suffix + "#" + strconv.Itoa(i) + " " + job.Name + " (" + strconv.Itoa(len(job.VolunteerIds)) + "/" + strconv.Itoa(job.NbVolunteers) + ")"
-		suffix = " | "
+		firstLine += "#" + strconv.Itoa(i) + " " + job.Name + " (" + strconv.Itoa(len(job.VolunteerIds)) + "/" + strconv.Itoa(job.NbVolunteers) + ")\t"
 		for _, userId := range job.VolunteerIds {
-			allUsersWorking = append(allUsersWorking, users[userId].Username)
+			allUsersWorking[i-1] = append(allUsersWorking[i-1], users[userId].Username)
+			numberOfUsers++
 		}
 	}
 
-	response += "\n"
+	loadEntitiesToChannel(s.uChan, users, s)
 
-	for _, name := range allUsersWorking {
-		response += name + "\n"
+	var builder strings.Builder
+	aligner := "\t"
+	var endColumn string
+	for i := 0; i < len(allUsersWorking); i++ {
+		endColumn += "\t"
 	}
 
-	return response + "\n"
+	w := tabwriter.NewWriter(&builder, 0, 0, 3, ' ', 0)
+	fmt.Fprintln(w, firstLine)
+
+	if numberOfUsers == 0 {
+		w.Flush()
+		return utils.MESSAGE.WrapEvent(eventTitle + builder.String() + "\nThere is currently no volunteers for this event.\n")
+	}
+
+	for i := 0; i < len(allUsersWorking); i++ {
+		for j := 0; j < len(allUsersWorking[i]); j++ {
+			fmt.Fprintln(w, allUsersWorking[i][j]+aligner+"x"+endColumn)
+		}
+		aligner += "\t"
+		endColumn = strings.TrimSuffix(endColumn, "\t")
+	}
+	w.Flush()
+
+	return utils.MESSAGE.WrapEvent(eventTitle + builder.String())
 }
 
 // ---------- Fonctions helpers ----------
