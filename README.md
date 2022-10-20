@@ -166,6 +166,8 @@ Nous voyons bien qu'il n'y a plus de places pour le client 2 (valentin) qui s'es
 
 ### Test d'un client qui crée une manifestation et un autre client qui s'inscrit à cette manifestation :
 
+Client 1 :
+
 ```bash
 #1
 create hellFest sécurité 10 montage 50 musicien 30

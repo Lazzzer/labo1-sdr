@@ -1,3 +1,8 @@
+// Auteurs: Jonathan Friedli, Lazar Pavicevic
+// Labo 1 SDR
+
+// Package main est le point d'entrée du programme permettant de démarrer le serveur ou un client.
+// Il gère aussi les flags du serveur pour le lancer en mode "debug" ou em mode "silent".
 package main
 
 import (

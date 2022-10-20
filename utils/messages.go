@@ -1,5 +1,9 @@
+// Auteurs: Jonathan Friedli, Lazar Pavicevic
+// Labo 1 SDR
+
 package utils
 
+// Message contient les variables représentant tous les messages utilisés par le serveur et le client
 type Message struct {
 	Error      errorMessage
 	Title      string
@@ -9,6 +13,7 @@ type Message struct {
 	LoginEnd   string
 }
 
+// errorMessage contient les différents messages d'erreur spécifiques
 type errorMessage = struct {
 	InvalidCommand      string
 	InvalidNbArgs       string
@@ -26,6 +31,7 @@ type errorMessage = struct {
 	NbVolunteersInteger string
 }
 
+// MESSAGE est une constante avec les messages d'erreurs formatés
 var MESSAGE = Message{
 	Error: errorMessage{
 		InvalidCommand:      wrapError("Invalid command. Type 'help' for a list of commands.\n"),
@@ -50,6 +56,7 @@ var MESSAGE = Message{
 	LoginEnd:   loginEnd,
 }
 
+// WrapSuccess formate un message succès avec des traits coloriés en vert
 func (m *Message) WrapSuccess(message string) string {
 	success := GREEN + "\n===================== ✅ SUCCESS ✅ ==========================\n\n" + RESET
 	success += message + "\n"
@@ -57,6 +64,7 @@ func (m *Message) WrapSuccess(message string) string {
 	return success
 }
 
+// WrapEvent formate un message lié à un event avec des traits coloriés en bleu
 func (m *Message) WrapEvent(message string) string {
 	event := CYAN + "\n====================== 📅 EVENT 📅 ===========================\n\n" + RESET
 	event += message + "\n"
@@ -64,6 +72,7 @@ func (m *Message) WrapEvent(message string) string {
 	return event
 }
 
+// WrapSuccess formate un message d'erreur avec des traits coloriés en rouge
 func wrapError(message string) string {
 	err := RED + "\n===================== ❌ ERROR ❌ ============================\n\n" + RESET
 	err += message + "\n"

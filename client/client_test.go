@@ -1,3 +1,6 @@
+// Auteurs: Jonathan Friedli, Lazar Pavicevic
+// Labo 1 SDR
+
 package client
 
 import (
@@ -15,16 +18,19 @@ import (
 var testingConfig = types.Config{Host: "localhost", Port: 8081}
 var testingDebugConfig = types.Config{Host: "localhost", Port: 8082}
 
+// TestInput définit un test pour un input du client
 type TestInput struct {
 	Description string
 	Input       string
 	Expected    string
 }
 
+// TestClient est un client de test
 type TestClient struct {
 	Config types.Config
 }
 
+// init() lance les serveurs de test
 func init() {
 	serv := server.Server{Config: types.Config{Port: 8081, Debug: false, Silent: true}}
 	servDebug := server.Server{Config: types.Config{Port: 8082, Debug: true, Silent: true, DebugDelay: 5}}
@@ -33,6 +39,7 @@ func init() {
 	go servDebug.Run()
 }
 
+// Run est une méthode de TestClient qui peut accepter plusieurs tests à run
 func (tc *TestClient) Run(tests []TestInput, t *testing.T) {
 	conn, err := net.Dial("tcp", tc.Config.Host+":"+strconv.Itoa(tc.Config.Port))
 
@@ -66,12 +73,14 @@ func (tc *TestClient) Run(tests []TestInput, t *testing.T) {
 	}
 }
 
+// run est une fonction à lancer dans une goroutine pour lancer des tests de clients concurrents
 func run(tc *TestClient, wg *sync.WaitGroup, tests []TestInput, t *testing.T) {
 	defer wg.Done()
 	fmt.Println("Test client is running")
 	tc.Run(tests, t)
 }
 
+// runConcurrent crée des testClients, les fait lancer leurs tests en concurrent et attend qu'ils aient fini
 func runConcurrent(nbClients int, tests [][]TestInput, t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(nbClients)
