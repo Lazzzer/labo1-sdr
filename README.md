@@ -123,19 +123,74 @@ Une [Github Action](https://github.com/Lazzzer/labo1-sdr/actions/workflows/tests
 
 ![Tests](/docs/tests.png)
 
-### Procédure de tests manuels sur les accès concurrents
+## Procédure de tests manuels sur les accès concurrents
 
-1. Accès sur des sections non-critiques :
+### Mise en place:
 
-// TODO
+A la racine du projet, se trouve le fichier `config.json` pour spécifier l'adresse, le port et surtout le temps de délai artificiel lors des accès concurrents. Nous pouvons laisser la plupart des valeurs telles quelles. Il faut juste s'assurer d'avoir un nombre suffisamment grand (ex. 10s) pour la propriété `debug_delay`.
 
-2. Accès sur des sections critiques en lecture :
+Il nous faut lancer :
 
-// TODO
+- un serveur en mode `debug` (soit via le flag `--debug`, soit avec la propriété dans le fichier `config.json`).
+- deux clients
 
-3. Accès sur des sections critiques en lecture/écriture :
+### Test de deux clients souhaitant s'inscrire à la dernière place d'un même job
 
-// TODO
+Client 1 :
+
+```bash
+#1
+register 3 3
+#2
+Enter username: jonathan
+#3 A insérer simultanément
+Enter password: root
+```
+
+Client 2 :
+
+```bash
+#1
+register 3 3
+#2
+Enter username: valentin
+#3 A insérer simultanément
+Enter password: root
+```
+
+Résultat si c'est le client 1 qui est le premier à insérer le mot de passe:
+
+![Test1](/docs/test1.png)
+
+Nous voyons bien qu'il n'y a plus de places pour le client 2 (valentin) qui s'essuie donc un refus.
+
+### Test d'un client qui crée une manifestation et un autre client qui s'inscrit à cette manifestation :
+
+```bash
+#1
+create hellFest sécurité 10 montage 50 musicien 30
+#2
+Enter username: jonathan
+#3 A insérer simultanément
+Enter password: root
+```
+
+Client 2 :
+
+```bash
+#1
+register 4 1
+#2
+Enter username: valentin
+#3 A insérer simultanément
+Enter password: root
+```
+
+Résultat si c'est le client 1 qui est le premier à insérer le mot de passe:
+
+![Test1](/docs/test2.png)
+
+Ici, le client 2 a réussi à s'inscrire à une manifestation qui n'existait pas au moment de la requête. Sauf, que vu que le client 1 a créé la manifestation et a eu accès à la section partagée avant lui, il a pu s'y inscrire car il a du attendre l'accès à la section critique.
 
 ## Implémentation et spécificités
 
@@ -159,6 +214,10 @@ Nous nous sommes principalement assurés que l'application s'affichait bien sur 
 
 De manière globale, l'application fonctionne relativement bien. Nous n'avons pas à signaler de dysfonctionnements majeurs sur les fonctionnalités demandées par le cahier des charges. Cependant, nous avons remarqué quelques problèmes mineurs:
 
-- Les logs du serveurs pour des actions simultanées peuvent s'afficher dans un ordre légèrement différent. Nous pouvons l'observer sur les tests d'accès concurrents. Cela détériore un peu la clarté mais n'affiche pas pour autant des résultats aberrants.
+- Les logs du serveur pour des actions simultanées peuvent s'afficher dans un ordre légèrement différent de la réalité si l'affichage se fait vraiment en même temps. Nous pouvons l'observer sur les tests d'accès concurrents. Du coup, pour les logs datés à la même seconde, cela peut faire penser que nous accédons à une section critique en même temps alors que ce n'est pas le cas.
 
 - Il n'est pas possible d'insérer des noms avec des espaces. Ici, nous avons fait le choix de privilégier la simplicité d'implémentation et de nous concentrer sur les fonctionnalités demandées. Nous aurions pu utiliser des guillemets et faire un traitement plus poussé des arguments.
+
+```
+
+```

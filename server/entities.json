@@ -110,6 +110,12 @@
           "creator_id": 7,
           "nb_volunteers": 4,
           "volunteer_ids": []
+        },
+        "3": {
+          "name": "Sécurité",
+          "creator_id": 7,
+          "nb_volunteers": 1,
+          "volunteer_ids": []
         }
       }
     }
