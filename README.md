@@ -173,7 +173,7 @@ Client 1 :
 create hellFest sécurité 10 montage 50 musicien 30
 #2
 Enter username: jonathan
-#3 A insérer simultanément
+#3
 Enter password: root
 ```
 
@@ -184,7 +184,7 @@ Client 2 :
 register 4 1
 #2
 Enter username: valentin
-#3 A insérer simultanément
+#3
 Enter password: root
 ```
 
@@ -192,7 +192,7 @@ Résultat si c'est le client 1 qui est le premier à insérer le mot de passe:
 
 ![Test1](/docs/test2.png)
 
-Ici, le client 2 a réussi à s'inscrire à une manifestation qui n'existait pas au moment de la requête. Sauf, que vu que le client 1 a créé la manifestation et a eu accès à la section partagée avant lui, il a pu s'y inscrire car il a du attendre l'accès à la section critique.
+Ici, le client 2 a réussi à s'inscrire à une manifestation qui n'existait pas au moment de la requête. Sauf que vu que le client 1 a créé la manifestation et a eu accès à la section partagée avant lui, il a pu s'y inscrire, car il a du attendre l'accès à la section critique.
 
 ## Implémentation et spécificités
 
@@ -204,11 +204,11 @@ Le serveur est capable de gérer plusieurs connexions de clients en lançant des
 
 ### Le client
 
-Le client est relativement simple mais comporte cependant certains avantages le rendant plus intéressant qu'un bête client "netcat". Il peut détecter si une commande insérée existe et évite notamment de spammer le serveur avec des messages inutiles ou vides. Une fois qu'une commande passe son filtre, c'est au serveur de s'assurer de la conformité des arguments avant de poursuivre le traitement. Le client sait aussi détecter quelle commande demande une authentification et propose donc un prompt d'authentification comme étape intermédiaire avant d'envoyer la commande au serveur. Bien entendu, le mot de passe n'est pas affiché pendant la saisie. Finalement, le client écoute aussi les signaux du `CTRL+C` et émet une commande `quit` classique avant de clore proprement la connexion et se terminer.
+Le client est relativement simple, mais comporte cependant certains avantages le rendant plus intéressant qu'un bête client "netcat". Il peut détecter si une commande insérée existe et évite notamment de spammer le serveur avec des messages inutiles ou vides. Une fois qu'une commande passe son filtre, c'est au serveur de s'assurer de la conformité des arguments avant de poursuivre le traitement. Le client sait aussi détecter quelle commande demande une authentification et propose donc un prompt d'authentification comme étape intermédiaire avant d'envoyer la commande au serveur. Bien entendu, le mot de passe n'est pas affiché pendant la saisie. Finalement, le client écoute aussi les signaux du `CTRL+C` et émet une commande `quit` classique avant de clore proprement la connexion et se terminer.
 
-### Les couleurs et les emojis
+### Les couleurs et les émojis
 
-Nous utilisons des couleurs (qui sont simplement des caractères spéciaux que nous avons déclarés dans le fichiers `colors.go`) et des emojis pour rendre l'expérience utilisateur plus agréable. Ces ajouts esthétiques peuvent ne pas s'afficher correctement, notamment sur des consoles comme `cmd`.
+Nous utilisons des couleurs (qui sont simplement des caractères spéciaux que nous avons déclarés dans le fichiers `colors.go`) et des émojis pour rendre l'expérience utilisateur plus agréable. Ces ajouts esthétiques peuvent ne pas s'afficher correctement, notamment sur des consoles comme `cmd`.
 
 Nous nous sommes principalement assurés que l'application s'affichait bien sur la console `Windows Terminal` (devenu depuis peu la console par défaut de Windows 11) en lançant des shells `zsh` (avec WSL2) et `Powershell`.
 
@@ -219,7 +219,3 @@ De manière globale, l'application fonctionne relativement bien. Nous n'avons pa
 - Les logs du serveur pour des actions simultanées peuvent s'afficher dans un ordre légèrement différent de la réalité si l'affichage se fait vraiment en même temps. Nous pouvons l'observer sur les tests d'accès concurrents. Du coup, pour les logs datés à la même seconde, cela peut faire penser que nous accédons à une section critique en même temps alors que ce n'est pas le cas.
 
 - Il n'est pas possible d'insérer des noms avec des espaces. Ici, nous avons fait le choix de privilégier la simplicité d'implémentation et de nous concentrer sur les fonctionnalités demandées. Nous aurions pu utiliser des guillemets et faire un traitement plus poussé des arguments.
-
-```
-
-```
