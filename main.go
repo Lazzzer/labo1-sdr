@@ -18,6 +18,7 @@ import (
 //go:embed config.json
 var configJson string
 
+// main est la méthode d'entrée du programme
 func main() {
 
 	serverMode := flag.Bool("server", false, "Boolean: Run program in server mode. Default is client mode")
