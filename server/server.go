@@ -45,7 +45,6 @@ func (s *Server) Run() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer listener.Close()
 
 	s.eChan = make(chan map[int]types.Event, 1)
 	s.uChan = make(chan map[int]types.User, 1)
@@ -60,13 +59,17 @@ func (s *Server) Run() {
 		conn, err := listener.Accept()
 		if err != nil {
 			log.Println(utils.RED + "(ERROR) " + err.Error() + utils.RESET)
-			return
+			break
 		} else {
 			if !s.Config.Silent {
 				log.Println(utils.GREEN + "(INFO) " + conn.RemoteAddr().String() + " connected" + utils.RESET)
 			}
 		}
 		go s.handleConn(conn)
+	}
+	err = listener.Close()
+	if err != nil {
+		log.Println(err)
 	}
 }
 
@@ -84,7 +87,7 @@ func (s *Server) handleConn(conn net.Conn) {
 		if !s.Config.Silent {
 			log.Print(utils.YELLOW + "(INFO) " + conn.RemoteAddr().String() + " -> " + strings.TrimSuffix(input, "\n") + utils.RESET)
 		}
-		response, end := s.processCommand(strings.TrimSpace(string(input)))
+		response, end := s.processCommand(strings.TrimSpace(input))
 
 		if end {
 			if !s.Config.Silent {
@@ -92,10 +95,15 @@ func (s *Server) handleConn(conn net.Conn) {
 			}
 			break
 		}
-
-		conn.Write([]byte(response))
+		_, err = conn.Write([]byte(response))
+		if err != nil {
+			log.Println(err)
+		}
 	}
-	conn.Close()
+	err := conn.Close()
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 // processCommand permet de traiter l'entrée utilisateur et de lancer la méthode correspondante à la commande saisie.
@@ -338,21 +346,33 @@ func (s *Server) jobs(args []string) string {
 	}
 
 	w := tabwriter.NewWriter(&builder, 0, 0, 3, ' ', 0)
-	fmt.Fprintln(w, firstLine)
+	_, err := fmt.Fprintln(w, firstLine)
+	if err != nil {
+		log.Println(err)
+	}
 
 	if numberOfUsers == 0 {
-		w.Flush()
+		err := w.Flush()
+		if err != nil {
+			log.Println(err)
+		}
 		return utils.MESSAGE.WrapEvent(eventTitle + builder.String() + "\nThere is currently no volunteers for this event.\n")
 	}
 
 	for i := 0; i < len(allUsersWorking); i++ {
 		for j := 0; j < len(allUsersWorking[i]); j++ {
-			fmt.Fprintln(w, allUsersWorking[i][j]+aligner+"✅"+endColumn)
+			_, err = fmt.Fprintln(w, allUsersWorking[i][j]+aligner+"✅"+endColumn)
+			if err != nil {
+				log.Println(err)
+			}
 		}
 		aligner += "\t"
 		endColumn = strings.TrimSuffix(endColumn, "\t")
 	}
-	w.Flush()
+	err = w.Flush()
+	if err != nil {
+		log.Println(err)
+	}
 
 	return utils.MESSAGE.WrapEvent(eventTitle + builder.String())
 }

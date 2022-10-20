@@ -49,11 +49,19 @@ func (c *Client) Run() {
 		fmt.Println(utils.MESSAGE.Title)
 	}
 
-	defer conn.Close()
+	defer func(conn net.Conn) {
+		err := conn.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(conn)
 
 	go func() {
 		<-intChan
-		conn.Write([]byte("quit\n"))
+		_, err = conn.Write([]byte("quit\n"))
+		if err != nil {
+			log.Println(err)
+		}
 		fmt.Println(utils.MESSAGE.Goodbye)
 		os.Exit(0)
 	}()
@@ -77,7 +85,10 @@ func (c *Client) Run() {
 			continue
 		}
 
-		io.Copy(conn, strings.NewReader(processedInput+"\n")) // Passage de l'input traité au serveur
+		_, err = io.Copy(conn, strings.NewReader(processedInput+"\n")) // Passage de l'input traité au serveur
+		if err != nil {
+			log.Println(err)
+		}
 
 		if processedInput == utils.QUIT.Name {
 			fmt.Println(utils.MESSAGE.Goodbye)

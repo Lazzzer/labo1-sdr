@@ -33,8 +33,8 @@ func main() {
 			config.Silent = true
 		}
 
-		server := server.Server{Config: config}
-		server.Run()
+		serv := server.Server{Config: config}
+		serv.Run()
 	} else {
 
 		if *debug || *silent {
@@ -42,7 +42,7 @@ func main() {
 			return
 		}
 
-		client := client.Client{Config: config}
-		client.Run()
+		cl := client.Client{Config: config}
+		cl.Run()
 	}
 }
