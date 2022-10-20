@@ -121,6 +121,8 @@ Le premier serveur sert aux tests d'intégrations qui vérifient principalement 
 
 Une [Github Action](https://github.com/Lazzzer/labo1-sdr/actions/workflows/tests.yml) lance automatiquement les tests sur trois versions de l'application compilées pour Windows, MacOS et Linux.
 
+![Tests](/docs/tests.png)
+
 ### Procédure de tests manuels sur les accès concurrents
 
 1. Accès sur des sections non-critiques :

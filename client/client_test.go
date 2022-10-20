@@ -72,18 +72,18 @@ func run(tc *TestClient, wg *sync.WaitGroup, tests []TestInput, t *testing.T) {
 	tc.Run(tests, t)
 }
 
-func runConcurrent(nbClients int, tests []TestInput, t *testing.T) {
+func runConcurrent(nbClients int, tests [][]TestInput, t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(nbClients)
 	for i := 0; i < nbClients; i++ {
 		testClient := TestClient{Config: testingDebugConfig}
-		go run(&testClient, &wg, tests, t)
+		go run(&testClient, &wg, tests[i], t)
 	}
 	wg.Wait()
 	fmt.Println("Test clients are done")
 }
 
-func Test_Help_Command(t *testing.T) {
+func TestHelpCommand(t *testing.T) {
 	testClient := TestClient{Config: testingConfig}
 
 	tests := []TestInput{
@@ -101,7 +101,7 @@ func Test_Help_Command(t *testing.T) {
 	testClient.Run(tests, t)
 }
 
-func Test_Show_Command(t *testing.T) {
+func TestShowCommand(t *testing.T) {
 	testClient := TestClient{Config: testingConfig}
 
 	var showAll = utils.RED + "Closed" + utils.RESET + "\t#1 " + utils.BOLD + utils.CYAN + "Montreux Jazz 2022" + utils.RESET + " / Creator: claude\n\n" +
@@ -135,7 +135,7 @@ func Test_Show_Command(t *testing.T) {
 	testClient.Run(tests, t)
 }
 
-func Test_Jobs_Command(t *testing.T) {
+func TestJobsCommand(t *testing.T) {
 	testClient := TestClient{Config: testingConfig}
 
 	var showJobs = utils.MESSAGE.WrapEvent("#2 \x1b[1m\x1b[36mBaleinev 2023\x1b[0m\n\n\x1b[1mVolunteers\x1b[0m   #1 Montage (2/5)   #2 Stands (2/2)   #3 Sécurité (0/2)   \nvalentin             ✅                                                        \nfrancesco            ✅                                                        \njonathan                                ✅                                     \njane                                    ✅                                     \n")
@@ -172,7 +172,7 @@ func Test_Jobs_Command(t *testing.T) {
 	testClient.Run(tests, t)
 }
 
-func Test_Create_Command(t *testing.T) {
+func TestCreateCommand(t *testing.T) {
 	testClient := TestClient{Config: testingConfig}
 	tests := []TestInput{
 		{
@@ -209,7 +209,7 @@ func Test_Create_Command(t *testing.T) {
 	testClient.Run(tests, t)
 }
 
-func Test_Close_Command(t *testing.T) {
+func TestCloseCommand(t *testing.T) {
 	testClient := TestClient{Config: testingConfig}
 
 	tests := []TestInput{
@@ -247,7 +247,7 @@ func Test_Close_Command(t *testing.T) {
 	testClient.Run(tests, t)
 }
 
-func Test_Register_Command(t *testing.T) {
+func TestRegisterCommand(t *testing.T) {
 	testClient := TestClient{Config: testingConfig}
 
 	tests := []TestInput{
@@ -315,24 +315,49 @@ func Test_Register_Command(t *testing.T) {
 	testClient.Run(tests, t)
 }
 
-func Test_Commands_Concurrently(t *testing.T) {
+func TestCommandsConcurrentlyNoSharedSection(t *testing.T) {
+
+	tests := [][]TestInput{
+		{
+			{
+				Description: "Send show help and receive message",
+				Input:       "help\n",
+				Expected:    utils.MESSAGE.Help,
+			},
+		},
+		{
+			{
+				Description: "Send show help and receive message",
+				Input:       "help\n",
+				Expected:    utils.MESSAGE.Help,
+			},
+		},
+	}
+
+	runConcurrent(2, tests, t)
+}
+
+func TestCommandsConcurrentlyReadOnly(t *testing.T) {
 
 	var message = utils.RED + "Closed" + utils.RESET + "\t#1 " + utils.BOLD + utils.CYAN + "Montreux Jazz 2022" + utils.RESET + " / Creator: claude\n\n" +
 		utils.GREEN + "Open" + utils.RESET + "\t#2 " + utils.BOLD + utils.CYAN + "Baleinev 2023" + utils.RESET + " / Creator: john\n\n" +
 		utils.GREEN + "Open" + utils.RESET + "\t#3 " + utils.BOLD + utils.CYAN + "Balélec 2023" + utils.RESET + " / Creator: jane\n"
 
-	tests := []TestInput{
+	tests := [][]TestInput{
 		{
-			Description: "Send help command and receive help message",
-			Input:       "help\n",
-			Expected:    utils.MESSAGE.Help,
+			{
+				Description: "Send show command and receive message",
+				Input:       "show\n",
+				Expected:    utils.MESSAGE.WrapEvent(message),
+			},
 		},
 		{
-			Description: "Send show command and receive message",
-			Input:       "show\n",
-			Expected:    utils.MESSAGE.WrapEvent(message),
+			{
+				Description: "Send show command and receive message",
+				Input:       "show\n",
+				Expected:    utils.MESSAGE.WrapEvent(message),
+			},
 		},
 	}
-
 	runConcurrent(2, tests, t)
 }
