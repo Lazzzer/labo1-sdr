@@ -315,8 +315,8 @@ func (s *Server) jobs(args []string) string {
 
 	users := getEntitiesFromChannel(s.uChan, s)
 
-	eventTitle := "#" + strconv.Itoa(idEvent) + " " + event.Name + ":\n\n"
-	firstLine := "Volunteers\t"
+	eventTitle := "#" + strconv.Itoa(idEvent) + " " + utils.BOLD + utils.CYAN + event.Name + utils.RESET + "\n\n"
+	firstLine := utils.BOLD + "Volunteers" + utils.RESET + "\t"
 	numberOfUsers := 0
 	allUsersWorking := make([][]string, len(event.Jobs))
 	for i := 1; i <= len(event.Jobs); i++ {
@@ -347,7 +347,7 @@ func (s *Server) jobs(args []string) string {
 
 	for i := 0; i < len(allUsersWorking); i++ {
 		for j := 0; j < len(allUsersWorking[i]); j++ {
-			fmt.Fprintln(w, allUsersWorking[i][j]+aligner+"x"+endColumn)
+			fmt.Fprintln(w, allUsersWorking[i][j]+aligner+"✅"+endColumn)
 		}
 		aligner += "\t"
 		endColumn = strings.TrimSuffix(endColumn, "\t")
