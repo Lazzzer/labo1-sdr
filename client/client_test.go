@@ -135,6 +135,43 @@ func Test_Show_Command(t *testing.T) {
 	testClient.Run(tests, t)
 }
 
+func Test_Jobs_Command(t *testing.T) {
+	testClient := TestClient{Config: testingConfig}
+
+	var showJobs = utils.MESSAGE.WrapEvent("#2 \x1b[1m\x1b[36mBaleinev 2023\x1b[0m\n\n\x1b[1mVolunteers\x1b[0m   #1 Montage (2/5)   #2 Stands (2/2)   #3 Sécurité (0/2)   \nvalentin             ✅                                                        \nfrancesco            ✅                                                        \njonathan                                ✅                                     \njane                                    ✅                                     \n")
+
+	var showJobsEmpty = utils.MESSAGE.WrapEvent("#3 \x1b[1m\x1b[36mBalélec 2023\x1b[0m\n\n\x1b[1mVolunteers\x1b[0m   #1 Montage (0/4)   #2 Stands (0/4)   \n\nThere is currently no volunteers for this event.\n")
+
+	tests := []TestInput{
+		{
+			Description: "Send jobs command for event 2 and receive jobs distribution with volunteers",
+			Input:       "jobs 2\n",
+			Expected:    showJobs,
+		},
+		{
+			Description: "Send jobs command for event 3 and receive message saying there are no volunteers",
+			Input:       "jobs 3\n",
+			Expected:    showJobsEmpty,
+		},
+		{
+			Description: "Send jobs command with no args and receive error message",
+			Input:       "jobs\n",
+			Expected:    utils.MESSAGE.Error.InvalidNbArgs,
+		},
+		{
+			Description: "Send jobs command with invalid nb of args and receive error message",
+			Input:       "jobs 1 1 1\n",
+			Expected:    utils.MESSAGE.Error.InvalidNbArgs,
+		},
+		{
+			Description: "Send invalid jobs command and receive error message",
+			Input:       "jobss\n",
+			Expected:    utils.MESSAGE.Error.InvalidCommand,
+		},
+	}
+	testClient.Run(tests, t)
+}
+
 func Test_Create_Command(t *testing.T) {
 	testClient := TestClient{Config: testingConfig}
 	tests := []TestInput{
