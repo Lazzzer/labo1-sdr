@@ -1,4 +1,8 @@
-# Laboratoire 1 de SDR
+# Event Manager - Laboratoire 1 de SDR
+
+[![Testing on Windows, macOS and Linux](https://github.com/Lazzzer/labo1-sdr/actions/workflows/tests.yml/badge.svg)](https://github.com/Lazzzer/labo1-sdr/actions/workflows/tests.yml)
+
+![Client and server running](docs/example.png)
 
 ## Auteurs
 
@@ -10,13 +14,13 @@ Ce projet est réalisé dans le cadre du cours de Systèmes Distribués et Répa
 
 ## Utilisation du programme
 
-Le programme contient plusieurs flags qui permettent de choisir le lancement d'un serveur ou d'un client. Ils spécifient aussi si le serveur doit être lancé en mode `debug` et/ou en mode `silent`.
+L'application contient plusieurs flags qui permettent de choisir le lancement d'un serveur ou d'un client. Ils spécifient aussi si le serveur doit être lancé en mode `debug` et/ou en mode `silent`.
 
-Le mode `debug` ralentit artificiellement de 4 secondes le serveur lorsqu'il rentre dans des sections critiques et affiche des messages d'entrées/sorties de ces dernières.
+Le mode `debug` ralentit artificiellement d'un nombre paramétrable de secondes le serveur lorsqu'il rentre dans des sections critiques et affiche des messages d'entrées/sorties de ces dernières.
 
-Le mod `silent` désactive les logs du serveur. Cependant, les logs du mode debug sont toujours affichés. Ceci est surtout pratique pour observer le comportement du serveur lor des tests d'intégration.
+Le mode `silent` désactive les logs du serveur. Cependant, les logs du mode debug sont toujours affichés. Ceci est surtout pratique pour observer le comportement du serveur lor des tests d'intégration automatisés.
 
-### Une commande pour connaître les usages est disponible :
+En cas de doute, une commande est disponible pour connaître les usages de l'application:
 
 ```bash
 # A la racine du projet
@@ -45,9 +49,6 @@ Usage of labo1-sdr.exe:
 ```bash
 # A la racine du projet
 go run .\main.go
-
-# Ou en mode race
-go run -race .\main.go
 ```
 
 ### Pour lancer un serveur:
@@ -63,7 +64,46 @@ go run -race .\main.go --server --debug
 go run .\main.go --server --silent
 ```
 
-### Pour lancer les tests automatisés:
+## Liste des commandes
+
+```bash
+# Afficher de l'aide
+help
+```
+
+```bash
+# Créer une manifestation avec une liste de noms de jobs et de bénévoles requis (Demande le nom d'utilisateur et le mot de passe de l'utilisateur)
+create <eventName> <jobName1> <nbVolunteer1> [<jobName2> <nbVolunteer2>...] [[<username> <password>]]
+```
+
+```bash
+# Clore une manifestation (Demande le nom d'utilisateur et le mot de passe de l'utilisateur)
+close <idEvent> [[<username> <password>]]
+```
+
+```bash
+# S'inscrire à une manifestation (Demande le nom d'utilisateur et le mot de passe de l'utilisateur)
+register <idEvent> <idJob> [[<username> <password>]]
+```
+
+```bash
+# Afficher toutes les manifestations ou une manifestation spécifique avec tous ses jobs
+show [<idEvent>]
+```
+
+```bash
+# Afficher la répartition des bénévoles d'une certaine manifestation
+jobs <idEvent>
+```
+
+```bash
+# Quitter le programme
+quit
+```
+
+## Les tests
+
+Les tests peuvent être lancés avec les commandes suivantes:
 
 ```bash
 # A la racine du projet
@@ -73,27 +113,50 @@ go test -race .\client -v
 go clean -testcache && go test -race .\client -v
 ```
 
-## Liste des commandes utilisateur
+Notre fichier de test comporte un `TestClient` capable de recevoir un tableau de tests à effectuer. Il remplace les inputs utilisateurs par de simples strings et affiche à la console les résultats des tests.
 
-```bash
-# Afficher de l'aide
-help
+La fonction `init()` est lancée avant la batterie de tests et permet de mettre en route deux serveurs de tests sur les ports `8081` et `8082`.
 
-# Créer une manifestation (Demande le nom d'utilisateur et le mot de passe de l'utilisateur)
-create <eventName> <jobName1> <nbVolunteer1> [<jobName2> <nbVolunteer2>...] [[<username> <password>]]
+Le premier serveur sert aux tests d'intégrations qui vérifient principalement une implémentation correcte des commandes. Le second serveur est en mode `debug` et sert à vérifier le bon comportement du code lors d'accès concurrents aux sections critiques.
 
-# Clore une manifestation (Demande le nom d'utilisateur et le mot de passe de l'utilisateur)
-close <idEvent> [[<username> <password>]]
+Une [Github Action](https://github.com/Lazzzer/labo1-sdr/actions/workflows/tests.yml) lance automatiquement les tests sur trois versions de l'application compilées pour Windows, MacOS et Linux.
 
-# S'inscrire à une manifestation (Demande le nom d'utilisateur et le mot de passe de l'utilisateur)
-register <idEvent> <idJob> [[<username> <password>]]
+### Procédure de tests manuels sur les accès concurrents
 
-# Afficher toutes les manifestations ou une manifestation spécifique
-show [<idEvent>]
+1. Accès sur des sections non-critiques :
 
-# Afficher les bénévoles d'une certaine manifestation
-jobs <idEvent>
+// TODO
 
-# Quitter le programme
-quit
-```
+2. Accès sur des sections critiques en lecture :
+
+// TODO
+
+3. Accès sur des sections critiques en lecture/écriture :
+
+// TODO
+
+## Implémentation et spécificités
+
+Nous avons choisi une implémentation où le client et le serveur s'échangent des strings via `io.Copy` une fois leur connexion établie. Le client envoie les commandes complètes en inline et le serveur répond avec un message formaté rendant soit le résultat de l'opération voulue, soit une erreur spécifique.
+
+### Le serveur
+
+Le serveur est capable de gérer plusieurs connexions de clients en lançant des goroutines pour chacune d'entre elles. Il s'appuie sur le contenu du fichier `entities.json` pour générer les entités de base (manifestations, jobs, bénévoles) à son lancement. Nous utilisons le principe du CSP (Communicating sequential processes) pour synchroniser les différentes goroutines qui peuvent accéder à la même ressource en concurrence. Pour cela, le serveur se repose fortement sur deux canaux: un pour les manifestations et un autre pour les utilisateurs.
+
+### Le client
+
+Le client est relativement simple mais comporte cependant certains avantages le rendant plus intéressant qu'un bête client "netcat". Il peut détecter si une commande insérée existe et évite notamment de spammer le serveur avec des messages inutiles ou vides. Une fois qu'une commande passe son filtre, c'est au serveur de s'assurer de la conformité des arguments avant de poursuivre le traitement. Le client sait aussi détecter quelle commande demande une authentification et propose donc un prompt d'authentification comme étape intermédiaire avant d'envoyer la commande au serveur. Bien entendu, le mot de passe n'est pas affiché pendant la saisie. Finalement, le client écoute aussi les signaux du `CTRL+C` et émet une commande `quit` classique avant de clore proprement la connexion et se terminer.
+
+### Les couleurs et les emojis
+
+Nous utilisons des couleurs (qui sont simplement des caractères spéciaux que nous avons déclarés dans le fichiers `colors.go`) et des emojis pour rendre l'expérience utilisateur plus agréable. Ces ajouts esthétiques peuvent ne pas s'afficher correctement, notamment sur des consoles comme `cmd`.
+
+Nous nous sommes principalement assurés que l'application s'affichait bien sur la console `Windows Terminal` (devenu depuis peu la console par défaut de Windows 11) en lançant des shells `zsh` (avec WSL2) et `Powershell`.
+
+### Ce qui ne marche pas bien
+
+De manière globale, l'application fonctionne relativement bien. Nous n'avons pas à signaler de dysfonctionnements majeurs sur les fonctionnalités demandées par le cahier des charges. Cependant, nous avons remarqué quelques problèmes mineurs:
+
+- Les logs du serveurs pour des actions simultanées peuvent s'afficher dans un ordre légèrement différent. Nous pouvons l'observer sur les tests d'accès concurrents. Cela détériore un peu la clarté mais n'affiche pas pour autant des résultats aberrants.
+
+- Il n'est pas possible d'insérer des noms avec des espaces. Ici, nous avons fait le choix de privilégier la simplicité d'implémentation et de nous concentrer sur les fonctionnalités demandées. Nous aurions pu utiliser des guillemets et faire un traitement plus poussé des arguments.
