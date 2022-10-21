@@ -29,6 +29,7 @@ import (
 
 // Client est une struct représentant un client TCP.
 type Client struct {
+	Name   string
 	Config types.Config // Configuration du client
 }
 

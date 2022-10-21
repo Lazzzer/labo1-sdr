@@ -1,6 +1,11 @@
 {
   "host": "localhost",
-  "port": 8080,
+  "ports": [
+    8000,
+    8001,
+    8002,
+    8003
+  ],
   "debug": false,
   "silent": false,
   "debug_delay": 5

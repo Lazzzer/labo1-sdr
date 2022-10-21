@@ -8,7 +8,8 @@ package types
 // Le client ne se soucie que des champs Host et Port que le serveur utilise.
 type Config struct {
 	Host       string `json:"host,omitempty"`        // Adresse du serveur
-	Port       int    `json:"port"`                  // Port du serveur
+	Port       int    `json:"port,omitempty"`        // Port du serveur
+	Ports      []int  `json:"ports"`                 // Ports des serveurs disponibles
 	Debug      bool   `json:"debug,omitempty"`       // Activation du mode debug pour vérifier la concurrence
 	Silent     bool   `json:"silent,omitempty"`      // Activation du mode silencieux pour ne pas afficher les logs
 	DebugDelay int    `json:"debug_delay,omitempty"` // Délai d'attente pour la simulation de la concurrence
