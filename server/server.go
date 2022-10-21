@@ -29,7 +29,9 @@ var entities string // variable qui permet de charger le fichier des entités da
 
 // Server est une struct représentant un serveur TCP.
 type Server struct {
-	Config types.Config             // Configuration du serveur
+	Config types.Config // Configuration du serveur
+	conns  []net.Conn   // Liste des connexions des serveurs
+	Stamp  int
 	eChan  chan map[int]types.Event // Canal d'accès à la map contenant des manifestations
 	uChan  chan map[int]types.User  // Canal d'accès à la map contenant des utilisateurs
 }
@@ -39,12 +41,27 @@ type Server struct {
 // Chaque connexion est ensuite gérée par une goroutine jusqu'à sa fermeture.
 func (s *Server) Run() {
 
-	users, events := utils.GetEntities(entities)
-
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(s.Config.Port))
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	s.conns = make([]net.Conn, len(s.Config.Ports))
+
+	// pingChan := make(chan bool, len(s.Config.Ports))
+
+	for i := 0; i < len(s.Config.Ports); i++ {
+		s.conns[i], err = net.Dial("tcp", s.Config.Host+":"+strconv.Itoa(s.Config.Ports[i]))
+		if err != nil {
+			log.Println(err)
+			i--
+			continue
+		} else {
+			log.Println(utils.GREEN + "(INFO) Connected to " + s.Config.Host + ":" + strconv.Itoa(s.Config.Port) + utils.RESET)
+		}
+	}
+
+	users, events := utils.GetEntities(entities)
 
 	s.eChan = make(chan map[int]types.Event, 1)
 	s.uChan = make(chan map[int]types.User, 1)
