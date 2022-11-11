@@ -43,25 +43,42 @@ type Server struct {
 // Chaque connexion est ensuite gérée par une goroutine jusqu'à sa fermeture.
 func (s *Server) Run() {
 
-	listener, err := net.Listen("tcp", ":"+s.Port)
+	var err error
+	var listener net.Listener
+	listener, err = net.Listen("tcp", ":"+s.Port)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	s.conns = make([]net.Conn, len(s.Config.Servers))
+	s.conns = make([]net.Conn, len(s.Config.Servers)-1)
+	nbSuccessConn := 0
 
-	// pingChan := make(chan bool, len(s.Config.Ports))
+	// Se connecte à chaque serveur déjà en ligne
+	for number := 1; number <= len(s.Config.Servers); number++ {
+		if number != s.Number {
+			conn, err := net.Dial("tcp", s.Config.Servers[number])
+			if err != nil {
+				log.Println(utils.GREEN + "(INFO) Server #" + strconv.Itoa(s.Number) + " could not connect to Server #" + strconv.Itoa(number) + ". Switch to listening connections." + utils.RESET)
+				break
+			} else {
+				s.conns[number-1] = conn
+				nbSuccessConn++
+				log.Println(utils.GREEN + "(INFO) Server #" + strconv.Itoa(s.Number) + " connected to Server #" + strconv.Itoa(number) + utils.RESET)
+			}
+		}
+	}
 
-	// for i := 0; i < len(s.Config.Ports); i++ {
-	// 	s.conns[i], err = net.Dial("tcp", s.Config.Host+":"+strconv.Itoa(s.Config.Ports[i]))
-	// 	if err != nil {
-	// 		log.Println(err)
-	// 		i--
-	// 		continue
-	// 	} else {
-	// 		log.Println(utils.GREEN + "(INFO) Connected to " + s.Config.Host + ":" + strconv.Itoa(s.Config.Port) + utils.RESET)
-	// 	}
-	// }
+	// Se met en mode attente de connexion des autres serveurs s'il n'arrive plus à se connecter à un serveur
+	for nbSuccessConn < len(s.Config.Servers)-1 {
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			nbSuccessConn++
+			log.Println(conn.RemoteAddr().String() + " connected")
+			log.Println(utils.GREEN + "(INFO) Server #" + strconv.Itoa(s.Number) + " received a connection" + utils.RESET)
+		}
+	}
 
 	users, events := utils.GetEntities(entities)
 
@@ -72,7 +89,7 @@ func (s *Server) Run() {
 	s.eChan <- events
 
 	if !s.Config.Silent {
-		log.Println(utils.GREEN + "(INFO) " + "Server started on port " + s.Port + utils.RESET)
+		log.Println(utils.GREEN + "(INFO) " + "Server #" + strconv.Itoa(s.Number) + " started on port " + s.Port + utils.RESET)
 	}
 	for {
 		conn, err := listener.Accept()
