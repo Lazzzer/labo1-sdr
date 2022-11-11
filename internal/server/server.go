@@ -32,7 +32,7 @@ type Server struct {
 	Number int                // numéro du serveur
 	Port   string             // port sur lequel le serveur écoute
 	Config types.ServerConfig // Configuration du serveur
-	conns  []net.Conn         // Liste des connexions des serveurs
+	conns  map[int]net.Conn   // Liste des connexions des serveurs
 	Stamp  int
 	eChan  chan map[int]types.Event // Canal d'accès à la map contenant des manifestations
 	uChan  chan map[int]types.User  // Canal d'accès à la map contenant des utilisateurs
@@ -50,7 +50,7 @@ func (s *Server) Run() {
 		log.Fatal(err)
 	}
 
-	s.conns = make([]net.Conn, len(s.Config.Servers)-1)
+	s.conns = make(map[int]net.Conn, len(s.Config.Servers)-1)
 	nbSuccessConn := 0
 
 	// Se connecte à chaque serveur déjà en ligne
@@ -61,9 +61,15 @@ func (s *Server) Run() {
 				log.Println(utils.GREEN + "(INFO) Server #" + strconv.Itoa(s.Number) + " could not connect to Server #" + strconv.Itoa(number) + ". Switch to listening connections." + utils.RESET)
 				break
 			} else {
-				s.conns[number-1] = conn
+				s.conns[number] = conn
 				nbSuccessConn++
 				log.Println(utils.GREEN + "(INFO) Server #" + strconv.Itoa(s.Number) + " connected to Server #" + strconv.Itoa(number) + utils.RESET)
+				// Envoie le numéro du serveur qui se connecte au serveur en ligne
+				_, err = conn.Write([]byte(strconv.Itoa(s.Number) + "\n"))
+				if err != nil {
+					log.Println(err)
+				}
+
 			}
 		}
 	}
@@ -75,8 +81,7 @@ func (s *Server) Run() {
 			log.Fatal(err)
 		} else {
 			nbSuccessConn++
-			log.Println(conn.RemoteAddr().String() + " connected")
-			log.Println(utils.GREEN + "(INFO) Server #" + strconv.Itoa(s.Number) + " received a connection" + utils.RESET)
+			s.handleHandshake(conn)
 		}
 	}
 
@@ -91,6 +96,8 @@ func (s *Server) Run() {
 	if !s.Config.Silent {
 		log.Println(utils.GREEN + "(INFO) " + "Server #" + strconv.Itoa(s.Number) + " started on port " + s.Port + utils.RESET)
 	}
+
+	// Le serveur est prêt à recevoir des connexions de clients
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -101,7 +108,7 @@ func (s *Server) Run() {
 				log.Println(utils.GREEN + "(INFO) " + conn.RemoteAddr().String() + " connected" + utils.RESET)
 			}
 		}
-		go s.handleConn(conn)
+		go s.handleClientConn(conn)
 	}
 	err = listener.Close()
 	if err != nil {
@@ -109,8 +116,32 @@ func (s *Server) Run() {
 	}
 }
 
-// handleConn gère l'I/O avec un client connecté au serveur
-func (s *Server) handleConn(conn net.Conn) {
+// handleHandshake gère l'handshake d'un serveur qui reçoit la connexion d'un autre serveur. Cette méthode sert surtout
+// à récupérer le numéro du serveur "client" pour pouvoir l'ajouter à la liste des connexions du serveur.
+func (s *Server) handleHandshake(conn net.Conn) {
+	reader := bufio.NewReader(conn)
+
+	// Récupère le numéro du serveur
+	numberStr, err := reader.ReadString('\n')
+
+	if err != nil {
+		log.Println(utils.RED + "(ERROR) " + err.Error() + utils.RESET)
+		return
+	}
+	numberStr = numberStr[:len(numberStr)-1]
+	number, err := strconv.Atoi(numberStr)
+	if err != nil {
+		log.Println(utils.RED + "(ERROR) " + err.Error() + utils.RESET)
+		return
+	}
+
+	log.Println(utils.GREEN + "(INFO) Server #" + strconv.Itoa(s.Number) + " received a connection from Server #" + numberStr + utils.RESET)
+	println(s.conns)
+	s.conns[number] = conn
+}
+
+// handleClientConn gère l'I/O avec un client connecté au serveur
+func (s *Server) handleClientConn(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	for {
 		input, err := reader.ReadString('\n')
