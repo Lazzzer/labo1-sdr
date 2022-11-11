@@ -4,15 +4,16 @@
 // Package types propose différents types utilisés par l'application pour parser les fichiers de configuration et les entités.
 package types
 
-// Config est un type représentant la configuration d'un client ou d'un serveur.
-// Le client ne se soucie que des champs Host et Port que le serveur utilise.
 type Config struct {
-	Host       string `json:"host,omitempty"`        // Adresse du serveur
-	Port       int    `json:"port,omitempty"`        // Port du serveur
-	Ports      []int  `json:"ports"`                 // Ports des serveurs disponibles
-	Debug      bool   `json:"debug,omitempty"`       // Activation du mode debug pour vérifier la concurrence
-	Silent     bool   `json:"silent,omitempty"`      // Activation du mode silencieux pour ne pas afficher les logs
-	DebugDelay int    `json:"debug_delay,omitempty"` // Délai d'attente pour la simulation de la concurrence
+	Address string         `json:"adress,omitempty"` // Adresse du serveur
+	Servers map[int]string `json:"servers"`          // Adresses des serveurs disponibles
+}
+
+type ServerConfig struct {
+	Config
+	Debug      bool `json:"debug"`                 // Activation du mode debug pour vérifier la concurrence
+	Silent     bool `json:"silent"`                // Activation du mode silencieux pour ne pas afficher les logs
+	DebugDelay int  `json:"debug_delay,omitempty"` // Délai d'attente pour la simulation de la concurrence
 }
 
 // Command est un type représentant une commande valide à envoyer par un client au serveur.

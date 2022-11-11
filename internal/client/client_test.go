@@ -6,17 +6,18 @@ package client
 import (
 	"fmt"
 	"net"
-	"strconv"
 	"sync"
 	"testing"
 
-	"github.com/Lazzzer/labo1-sdr/server"
-	"github.com/Lazzzer/labo1-sdr/utils"
-	"github.com/Lazzzer/labo1-sdr/utils/types"
+	"github.com/Lazzzer/labo1-sdr/internal/server"
+	"github.com/Lazzzer/labo1-sdr/internal/utils"
+	"github.com/Lazzzer/labo1-sdr/internal/utils/types"
 )
 
-var testingConfig = types.Config{Host: "localhost", Port: 8081}
-var testingDebugConfig = types.Config{Host: "localhost", Port: 8082}
+var testServers = map[int]string{1: "localhost:8081", 2: "localhost:8082"}
+var testConfig = types.Config{Address: "localhost:8081", Servers: testServers}
+var testingServerConfig = types.ServerConfig{Config: testConfig, Silent: true}
+var testingServerDebugConfig = types.ServerConfig{Config: testConfig, Silent: true, Debug: true, DebugDelay: 10}
 
 // TestInput définit un test pour un input du client
 type TestInput struct {
@@ -32,8 +33,8 @@ type TestClient struct {
 
 // init() lance les serveurs de test
 func init() {
-	serv := server.Server{Config: types.Config{Port: 8081, Debug: false, Silent: true}}
-	servDebug := server.Server{Config: types.Config{Port: 8082, Debug: true, Silent: true, DebugDelay: 5}}
+	serv := server.Server{Number: 1, Port: "8081", Config: testingServerConfig}
+	servDebug := server.Server{Number: 2, Port: "8082", Config: testingServerDebugConfig}
 
 	go serv.Run()
 	go servDebug.Run()
@@ -41,7 +42,7 @@ func init() {
 
 // Run est une méthode de TestClient qui peut accepter plusieurs tests à run
 func (tc *TestClient) Run(tests []TestInput, t *testing.T) {
-	conn, err := net.Dial("tcp", tc.Config.Host+":"+strconv.Itoa(tc.Config.Port))
+	conn, err := net.Dial("tcp", tc.Config.Address)
 
 	if err != nil {
 		t.Error(utils.RED + "FAIL: " + utils.RESET + "Error: could not connect to server")
@@ -85,7 +86,7 @@ func runConcurrent(nbClients int, tests [][]TestInput, t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(nbClients)
 	for i := 0; i < nbClients; i++ {
-		testClient := TestClient{Config: testingDebugConfig}
+		testClient := TestClient{Config: testConfig}
 		go run(&testClient, &wg, tests[i], t)
 	}
 	wg.Wait()
@@ -93,7 +94,7 @@ func runConcurrent(nbClients int, tests [][]TestInput, t *testing.T) {
 }
 
 func TestHelpCommand(t *testing.T) {
-	testClient := TestClient{Config: testingConfig}
+	testClient := TestClient{Config: testConfig}
 
 	tests := []TestInput{
 		{
@@ -111,7 +112,7 @@ func TestHelpCommand(t *testing.T) {
 }
 
 func TestShowCommand(t *testing.T) {
-	testClient := TestClient{Config: testingConfig}
+	testClient := TestClient{Config: testConfig}
 
 	var showAll = utils.RED + "Closed" + utils.RESET + "\t#1 " + utils.BOLD + utils.CYAN + "Montreux Jazz 2022" + utils.RESET + " / Creator: claude\n\n" +
 		utils.GREEN + "Open" + utils.RESET + "\t#2 " + utils.BOLD + utils.CYAN + "Baleinev 2023" + utils.RESET + " / Creator: john\n\n" +
@@ -145,7 +146,7 @@ func TestShowCommand(t *testing.T) {
 }
 
 func TestJobsCommand(t *testing.T) {
-	testClient := TestClient{Config: testingConfig}
+	testClient := TestClient{Config: testConfig}
 
 	var showJobs = utils.MESSAGE.WrapEvent("#2 \x1b[1m\x1b[36mBaleinev 2023\x1b[0m\n\n\x1b[1mVolunteers\x1b[0m   #1 Montage (2/5)   #2 Stands (2/2)   #3 Sécurité (0/2)   \nvalentin             ✅                                                        \nfrancesco            ✅                                                        \njonathan                                ✅                                     \njane                                    ✅                                     \n")
 
@@ -182,7 +183,7 @@ func TestJobsCommand(t *testing.T) {
 }
 
 func TestCreateCommand(t *testing.T) {
-	testClient := TestClient{Config: testingConfig}
+	testClient := TestClient{Config: testConfig}
 	tests := []TestInput{
 		{
 			Description: "Send create command for event with one job and receive confirmation message",
@@ -219,7 +220,7 @@ func TestCreateCommand(t *testing.T) {
 }
 
 func TestCloseCommand(t *testing.T) {
-	testClient := TestClient{Config: testingConfig}
+	testClient := TestClient{Config: testConfig}
 
 	tests := []TestInput{
 		{
@@ -257,7 +258,7 @@ func TestCloseCommand(t *testing.T) {
 }
 
 func TestRegisterCommand(t *testing.T) {
-	testClient := TestClient{Config: testingConfig}
+	testClient := TestClient{Config: testConfig}
 
 	tests := []TestInput{
 		{

@@ -12,7 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/Lazzzer/labo1-sdr/utils/types"
+	"github.com/Lazzzer/labo1-sdr/internal/utils/types"
 )
 
 // GetEntities parse une string pour retourner un tuple contenant les entités créées.
@@ -22,12 +22,12 @@ func GetEntities(content string) (map[int]types.User, map[int]types.Event) {
 }
 
 // GetConfig parse une string et retourne une configuration.
-func GetConfig(path string) types.Config {
-	return *parse[types.Config](path)
+func GetConfig[T types.Config | types.ServerConfig](path string) T {
+	return *parse[T](path)
 }
 
 // parse est une fonction générique limitée aux types Config et Entities et permet de retourner le pointeur de l'objet parsé
-func parse[T types.Config | types.Entities](content string) *T {
+func parse[T types.Config | types.ServerConfig | types.Entities](content string) *T {
 	var object T
 
 	err := json.Unmarshal([]byte(content), &object)

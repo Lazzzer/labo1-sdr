@@ -18,12 +18,11 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 
-	"github.com/Lazzzer/labo1-sdr/utils"
-	"github.com/Lazzzer/labo1-sdr/utils/types"
+	"github.com/Lazzzer/labo1-sdr/internal/utils"
+	"github.com/Lazzzer/labo1-sdr/internal/utils/types"
 	"golang.org/x/term"
 )
 
@@ -42,7 +41,7 @@ func (c *Client) Run() {
 	intChan := make(chan os.Signal, 1) // Catch du CTRL+C
 	signal.Notify(intChan, syscall.SIGINT)
 
-	conn, err := net.Dial("tcp", c.Config.Host+":"+strconv.Itoa(c.Config.Port))
+	conn, err := net.Dial("tcp", c.Config.Address)
 
 	if err != nil {
 		log.Fatal("❌ " + utils.RED + "Could not connect to the server." + utils.RESET)

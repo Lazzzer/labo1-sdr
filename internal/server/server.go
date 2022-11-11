@@ -20,8 +20,8 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/Lazzzer/labo1-sdr/utils"
-	"github.com/Lazzzer/labo1-sdr/utils/types"
+	"github.com/Lazzzer/labo1-sdr/internal/utils"
+	"github.com/Lazzzer/labo1-sdr/internal/utils/types"
 )
 
 //go:embed entities.json
@@ -29,8 +29,10 @@ var entities string // variable qui permet de charger le fichier des entités da
 
 // Server est une struct représentant un serveur TCP.
 type Server struct {
-	Config types.Config // Configuration du serveur
-	conns  []net.Conn   // Liste des connexions des serveurs
+	Number int                // numéro du serveur
+	Port   string             // port sur lequel le serveur écoute
+	Config types.ServerConfig // Configuration du serveur
+	conns  []net.Conn         // Liste des connexions des serveurs
 	Stamp  int
 	eChan  chan map[int]types.Event // Canal d'accès à la map contenant des manifestations
 	uChan  chan map[int]types.User  // Canal d'accès à la map contenant des utilisateurs
@@ -41,25 +43,25 @@ type Server struct {
 // Chaque connexion est ensuite gérée par une goroutine jusqu'à sa fermeture.
 func (s *Server) Run() {
 
-	listener, err := net.Listen("tcp", ":"+strconv.Itoa(s.Config.Port))
+	listener, err := net.Listen("tcp", ":"+s.Port)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	s.conns = make([]net.Conn, len(s.Config.Ports))
+	s.conns = make([]net.Conn, len(s.Config.Servers))
 
 	// pingChan := make(chan bool, len(s.Config.Ports))
 
-	for i := 0; i < len(s.Config.Ports); i++ {
-		s.conns[i], err = net.Dial("tcp", s.Config.Host+":"+strconv.Itoa(s.Config.Ports[i]))
-		if err != nil {
-			log.Println(err)
-			i--
-			continue
-		} else {
-			log.Println(utils.GREEN + "(INFO) Connected to " + s.Config.Host + ":" + strconv.Itoa(s.Config.Port) + utils.RESET)
-		}
-	}
+	// for i := 0; i < len(s.Config.Ports); i++ {
+	// 	s.conns[i], err = net.Dial("tcp", s.Config.Host+":"+strconv.Itoa(s.Config.Ports[i]))
+	// 	if err != nil {
+	// 		log.Println(err)
+	// 		i--
+	// 		continue
+	// 	} else {
+	// 		log.Println(utils.GREEN + "(INFO) Connected to " + s.Config.Host + ":" + strconv.Itoa(s.Config.Port) + utils.RESET)
+	// 	}
+	// }
 
 	users, events := utils.GetEntities(entities)
 
@@ -70,7 +72,7 @@ func (s *Server) Run() {
 	s.eChan <- events
 
 	if !s.Config.Silent {
-		log.Println(utils.GREEN + "(INFO) " + "Server started on port " + strconv.Itoa(s.Config.Port) + utils.RESET)
+		log.Println(utils.GREEN + "(INFO) " + "Server started on port " + s.Port + utils.RESET)
 	}
 	for {
 		conn, err := listener.Accept()
