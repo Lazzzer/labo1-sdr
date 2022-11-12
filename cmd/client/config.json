@@ -1,8 +1,8 @@
 {
   "servers": {
-    "1": "localhost:8001",
-    "2": "localhost:8002",
-    "3": "localhost:8003",
-    "4": "localhost:8004"
+    "1": "localhost:8081",
+    "2": "localhost:8082",
+    "3": "localhost:8083",
+    "4": "localhost:8084"
   }
 }

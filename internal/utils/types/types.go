@@ -11,9 +11,10 @@ type Config struct {
 
 type ServerConfig struct {
 	Config
-	Debug      bool `json:"debug"`                 // Activation du mode debug pour vérifier la concurrence
-	Silent     bool `json:"silent"`                // Activation du mode silencieux pour ne pas afficher les logs
-	DebugDelay int  `json:"debug_delay,omitempty"` // Délai d'attente pour la simulation de la concurrence
+	ClientPorts map[int]string `json:"client_ports"`          // Ports des listeners à utiliser pour écouter les connexions des clients
+	Debug       bool           `json:"debug"`                 // Activation du mode debug pour vérifier la concurrence
+	Silent      bool           `json:"silent"`                // Activation du mode silencieux pour ne pas afficher les logs
+	DebugDelay  int            `json:"debug_delay,omitempty"` // Délai d'attente pour la simulation de la concurrence
 }
 
 type CommunicationType int

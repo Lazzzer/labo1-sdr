@@ -29,14 +29,15 @@ var entities string // variable qui permet de charger le fichier des entités da
 
 // Server est une struct représentant un serveur TCP.
 type Server struct {
-	Number int                         // numéro du serveur
-	Port   string                      // port sur lequel le serveur écoute
-	Config types.ServerConfig          // Configuration du serveur
-	Stamp  int                         // Estampille actuelle du serveur
-	conns  map[int]net.Conn            // Map de connexions des serveurs
-	comms  map[int]types.Communication // Map des dernières communications entre les serveurs
-	eChan  chan map[int]types.Event    // Canal d'accès à la map contenant des manifestations
-	uChan  chan map[int]types.User     // Canal d'accès à la map contenant des utilisateurs
+	Number     int                         // numéro du serveur
+	Port       string                      // port sur lequel le serveur écoute
+	ClientPort string                      // port sur lequel le serveur écoute les connexions des clients
+	Config     types.ServerConfig          // Configuration du serveur
+	Stamp      int                         // Estampille actuelle du serveur
+	conns      map[int]net.Conn            // Map de connexions des serveurs
+	comms      map[int]types.Communication // Map des dernières communications entre les serveurs
+	eChan      chan map[int]types.Event    // Canal d'accès à la map contenant des manifestations
+	uChan      chan map[int]types.User     // Canal d'accès à la map contenant des utilisateurs
 }
 
 // Run lance le serveur et attend les connexions des clients.
@@ -45,13 +46,15 @@ type Server struct {
 func (s *Server) Run() {
 
 	var err error
-	var listener net.Listener
-	listener, err = net.Listen("tcp", ":"+s.Port)
+	var srvListener net.Listener
+	var clientListener net.Listener
+
+	srvListener, err = net.Listen("tcp", ":"+s.Port)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	s.initServersConns(listener)
+	s.initServersConns(srvListener)
 
 	users, events := utils.GetEntities(entities)
 
@@ -62,12 +65,17 @@ func (s *Server) Run() {
 	s.eChan <- events
 
 	if !s.Config.Silent {
-		log.Println(utils.GREEN + "(INFO) " + "Server #" + strconv.Itoa(s.Number) + " started on port " + s.Port + utils.RESET)
+		log.Println(utils.GREEN + "(INFO) " + "Server #" + strconv.Itoa(s.Number) + " started on port " + s.ClientPort + utils.RESET)
 	}
 
 	// Le serveur est prêt à recevoir des connexions de clients
+	clientListener, err = net.Listen("tcp", ":"+s.ClientPort)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	for {
-		conn, err := listener.Accept()
+		conn, err := clientListener.Accept()
 		if err != nil {
 			log.Println(utils.RED + "(ERROR) " + err.Error() + utils.RESET)
 			break
@@ -78,7 +86,12 @@ func (s *Server) Run() {
 		}
 		go s.handleClientConn(conn)
 	}
-	err = listener.Close()
+	err = srvListener.Close()
+	if err != nil {
+		log.Println(err)
+	}
+
+	err = clientListener.Close()
 	if err != nil {
 		log.Println(err)
 	}
@@ -114,8 +127,8 @@ func (s *Server) initServersConns(listener net.Listener) {
 		if err != nil {
 			log.Fatal(err)
 		} else {
-			nbSuccessConn++
 			s.handleHandshake(conn)
+			nbSuccessConn++
 		}
 	}
 
@@ -145,6 +158,10 @@ func (s *Server) handleHandshake(conn net.Conn) {
 	log.Println(utils.GREEN + "(INFO) Server #" + strconv.Itoa(s.Number) + " received a connection from Server #" + numberStr + utils.RESET)
 	println(s.conns)
 	s.conns[number] = conn
+
+	for _, conn := range s.conns {
+		go s.handleIncomingComms(conn)
+	}
 }
 
 // handleClientConn gère l'I/O avec un client connecté au serveur
@@ -178,6 +195,44 @@ func (s *Server) handleClientConn(conn net.Conn) {
 	if err != nil {
 		log.Println(err)
 	}
+}
+
+func (s *Server) sendRequests() {
+	s.Stamp++
+
+	req := types.Communication{
+		Type:    types.Request,
+		From:    s.Number,
+		To:      []int{2, 3, 4},
+		Stamp:   s.Stamp,
+		Payload: nil,
+	}
+
+	s.comms[s.Number] = req
+
+	for _, conn := range s.conns {
+		_, err := conn.Write([]byte("" + "\n"))
+		if err != nil {
+			log.Println(err)
+		}
+	}
+}
+
+func (s *Server) handleIncomingComms(conn net.Conn) {
+	reader := bufio.NewReader(conn)
+	for {
+		input, err := reader.ReadString('\n')
+
+		if err != nil {
+			log.Println(utils.RED + "(ERROR) " + err.Error() + utils.RESET)
+			break
+		}
+
+		log.Print(utils.YELLOW + "(INFO) " + conn.RemoteAddr().String() + " -> " + strings.TrimSuffix(input, "\n") + utils.RESET)
+
+		println(input)
+	}
+
 }
 
 // processCommand permet de traiter l'entrée utilisateur et de lancer la méthode correspondante à la commande saisie.

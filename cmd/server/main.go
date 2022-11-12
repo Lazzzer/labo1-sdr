@@ -53,6 +53,6 @@ func main() {
 		config.Silent = true
 	}
 
-	serv := server.Server{Number: number, Port: strings.Split(config.Address, ":")[1], Config: config}
+	serv := server.Server{Number: number, Port: strings.Split(config.Address, ":")[1], ClientPort: config.ClientPorts[number], Config: config}
 	serv.Run()
 }
