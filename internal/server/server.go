@@ -29,13 +29,14 @@ var entities string // variable qui permet de charger le fichier des entités da
 
 // Server est une struct représentant un serveur TCP.
 type Server struct {
-	Number int                // numéro du serveur
-	Port   string             // port sur lequel le serveur écoute
-	Config types.ServerConfig // Configuration du serveur
-	conns  map[int]net.Conn   // Liste des connexions des serveurs
-	Stamp  int
-	eChan  chan map[int]types.Event // Canal d'accès à la map contenant des manifestations
-	uChan  chan map[int]types.User  // Canal d'accès à la map contenant des utilisateurs
+	Number int                         // numéro du serveur
+	Port   string                      // port sur lequel le serveur écoute
+	Config types.ServerConfig          // Configuration du serveur
+	Stamp  int                         // Estampille actuelle du serveur
+	conns  map[int]net.Conn            // Map de connexions des serveurs
+	comms  map[int]types.Communication // Map des dernières communications entre les serveurs
+	eChan  chan map[int]types.Event    // Canal d'accès à la map contenant des manifestations
+	uChan  chan map[int]types.User     // Canal d'accès à la map contenant des utilisateurs
 }
 
 // Run lance le serveur et attend les connexions des clients.
@@ -69,7 +70,6 @@ func (s *Server) Run() {
 				if err != nil {
 					log.Println(err)
 				}
-
 			}
 		}
 	}
@@ -84,6 +84,9 @@ func (s *Server) Run() {
 			s.handleHandshake(conn)
 		}
 	}
+
+	s.Stamp = 0
+	s.comms = make(map[int]types.Communication)
 
 	users, events := utils.GetEntities(entities)
 
@@ -116,7 +119,7 @@ func (s *Server) Run() {
 	}
 }
 
-// handleHandshake gère l'handshake d'un serveur qui reçoit la connexion d'un autre serveur. Cette méthode sert surtout
+// handleHandshake gère la première communication d'un serveur qui reçoit la connexion d'un autre serveur. Cette méthode sert surtout
 // à récupérer le numéro du serveur "client" pour pouvoir l'ajouter à la liste des connexions du serveur.
 func (s *Server) handleHandshake(conn net.Conn) {
 	reader := bufio.NewReader(conn)

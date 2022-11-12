@@ -16,6 +16,22 @@ type ServerConfig struct {
 	DebugDelay int  `json:"debug_delay,omitempty"` // Délai d'attente pour la simulation de la concurrence
 }
 
+type CommunicationType int
+
+const (
+	Request     CommunicationType = 0
+	Acknowledge CommunicationType = 1
+	Release     CommunicationType = 2
+)
+
+type Communication struct {
+	Type    CommunicationType `json:"type"`  // Type de communication
+	From    int               `json:"from"`  // Numéro du serveur émetteur
+	To      []int             `json:"to"`    // Numéro des serveurs récepteurs
+	Stamp   int               `json:"stamp"` // Estampille associée à la communication
+	Payload map[int]Event     `json:"payload,omitempty"`
+}
+
 // Command est un type représentant une commande valide à envoyer par un client au serveur.
 type Command struct {
 	Name       string // Nom de la commande
