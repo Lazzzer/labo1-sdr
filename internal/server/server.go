@@ -11,6 +11,7 @@ package server
 import (
 	"bufio"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -107,7 +108,7 @@ func (s *Server) initServersConns(listener net.Listener) {
 			conn, err := net.Dial("tcp", s.Config.Servers[number])
 			if err != nil {
 				log.Println(utils.GREEN + "(INFO) Server #" + strconv.Itoa(s.Number) + " could not connect to Server #" + strconv.Itoa(number) + ". Switch to listening connections." + utils.RESET)
-				break
+				continue
 			} else {
 				s.conns[number] = conn
 				nbSuccessConn++
@@ -134,6 +135,10 @@ func (s *Server) initServersConns(listener net.Listener) {
 
 	s.Stamp = 0
 	s.comms = make(map[int]types.Communication)
+
+	for _, conn := range s.conns {
+		go s.handleIncomingComms(conn)
+	}
 }
 
 // handleHandshake gère la première communication d'un serveur qui reçoit la connexion d'un autre serveur. Cette méthode sert surtout
@@ -158,10 +163,6 @@ func (s *Server) handleHandshake(conn net.Conn) {
 	log.Println(utils.GREEN + "(INFO) Server #" + strconv.Itoa(s.Number) + " received a connection from Server #" + numberStr + utils.RESET)
 	println(s.conns)
 	s.conns[number] = conn
-
-	for _, conn := range s.conns {
-		go s.handleIncomingComms(conn)
-	}
 }
 
 // handleClientConn gère l'I/O avec un client connecté au serveur
@@ -197,21 +198,24 @@ func (s *Server) handleClientConn(conn net.Conn) {
 	}
 }
 
-func (s *Server) sendRequests() {
-	s.Stamp++
-
+func (s *Server) sendComm(commType types.CommunicationType, to []int, payload *map[int]types.Event) {
 	req := types.Communication{
-		Type:    types.Request,
+		Type:    commType,
 		From:    s.Number,
-		To:      []int{2, 3, 4},
+		To:      to,
 		Stamp:   s.Stamp,
-		Payload: nil,
+		Payload: nil, // TODO
 	}
 
 	s.comms[s.Number] = req
 
-	for _, conn := range s.conns {
-		_, err := conn.Write([]byte("" + "\n"))
+	reqJson, err := json.Marshal(req)
+	if err != nil {
+		log.Println(err)
+	}
+
+	for _, number := range to {
+		_, err := s.conns[number].Write([]byte(string(reqJson) + "\n"))
 		if err != nil {
 			log.Println(err)
 		}
@@ -230,8 +234,39 @@ func (s *Server) handleIncomingComms(conn net.Conn) {
 
 		log.Print(utils.YELLOW + "(INFO) " + conn.RemoteAddr().String() + " -> " + strings.TrimSuffix(input, "\n") + utils.RESET)
 
-		println(input)
+		var comm types.Communication
+		err = json.Unmarshal([]byte(strings.TrimSuffix(input, "\n")), &comm)
+
+		if err != nil {
+			log.Println(err)
+		}
+
+		switch comm.Type {
+		case types.Request:
+			s.handleRequest(comm)
+		case types.Acknowledge:
+			s.handleAcknowledge(comm)
+		case types.Release:
+			s.handleRelease(comm)
+		}
 	}
+}
+
+func (s *Server) handleRequest(comm types.Communication) {
+	s.Stamp = utils.Max(s.Stamp, comm.Stamp) + 1
+	s.comms[comm.From] = comm
+
+	if s.comms[s.Number].Type != types.Request {
+		return
+	}
+	s.sendComm(types.Acknowledge, []int{comm.From}, nil)
+}
+
+func (s *Server) handleAcknowledge(comm types.Communication) {
+
+}
+
+func (s *Server) handleRelease(comm types.Communication) {
 
 }
 
@@ -276,7 +311,8 @@ func (s *Server) processCommand(command string) (string, bool) {
 
 // help est la méthode appelée par la commande "help" et affiche un message d'aide listant chaque commande et ses arguments.
 func (s *Server) help(args []string) string {
-
+	s.Stamp++
+	s.sendComm(types.Request, utils.MapKeysToArray(s.conns), nil)
 	if msg, ok := s.checkNbArgs(args, &utils.HELP, false); !ok {
 		return msg
 	}
