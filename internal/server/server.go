@@ -51,6 +51,40 @@ func (s *Server) Run() {
 		log.Fatal(err)
 	}
 
+	s.initServersConns(listener)
+
+	users, events := utils.GetEntities(entities)
+
+	s.eChan = make(chan map[int]types.Event, 1)
+	s.uChan = make(chan map[int]types.User, 1)
+
+	s.uChan <- users
+	s.eChan <- events
+
+	if !s.Config.Silent {
+		log.Println(utils.GREEN + "(INFO) " + "Server #" + strconv.Itoa(s.Number) + " started on port " + s.Port + utils.RESET)
+	}
+
+	// Le serveur est prêt à recevoir des connexions de clients
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Println(utils.RED + "(ERROR) " + err.Error() + utils.RESET)
+			break
+		} else {
+			if !s.Config.Silent {
+				log.Println(utils.GREEN + "(INFO) " + conn.RemoteAddr().String() + " connected" + utils.RESET)
+			}
+		}
+		go s.handleClientConn(conn)
+	}
+	err = listener.Close()
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (s *Server) initServersConns(listener net.Listener) {
 	s.conns = make(map[int]net.Conn, len(s.Config.Servers)-1)
 	nbSuccessConn := 0
 
@@ -87,36 +121,6 @@ func (s *Server) Run() {
 
 	s.Stamp = 0
 	s.comms = make(map[int]types.Communication)
-
-	users, events := utils.GetEntities(entities)
-
-	s.eChan = make(chan map[int]types.Event, 1)
-	s.uChan = make(chan map[int]types.User, 1)
-
-	s.uChan <- users
-	s.eChan <- events
-
-	if !s.Config.Silent {
-		log.Println(utils.GREEN + "(INFO) " + "Server #" + strconv.Itoa(s.Number) + " started on port " + s.Port + utils.RESET)
-	}
-
-	// Le serveur est prêt à recevoir des connexions de clients
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			log.Println(utils.RED + "(ERROR) " + err.Error() + utils.RESET)
-			break
-		} else {
-			if !s.Config.Silent {
-				log.Println(utils.GREEN + "(INFO) " + conn.RemoteAddr().String() + " connected" + utils.RESET)
-			}
-		}
-		go s.handleClientConn(conn)
-	}
-	err = listener.Close()
-	if err != nil {
-		log.Println(err)
-	}
 }
 
 // handleHandshake gère la première communication d'un serveur qui reçoit la connexion d'un autre serveur. Cette méthode sert surtout
