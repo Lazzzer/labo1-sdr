@@ -20,9 +20,10 @@ type ServerConfig struct {
 type LogType string
 
 const (
-	INFO  LogType = "INFO"
-	ERROR LogType = "ERROR"
-	DEBUG LogType = "DEBUG"
+	INFO    LogType = "INFO"
+	ERROR   LogType = "ERROR"
+	DEBUG   LogType = "DEBUG"
+	LAMPORT LogType = "LAMPORT"
 )
 
 type CommunicationType string

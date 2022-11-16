@@ -6,6 +6,7 @@ package utils
 
 var RESET = "\033[0m"         // Variable pour réinitialiser la couleur du texte
 var RED = "\033[31m"          // Variable pour colorer le texte en rouge
+var PINK = "\033[38;5;198m"   // Variable pour colorer le texte en rose
 var GREEN = "\033[32m"        // Variable pour colorer le texte en vert
 var YELLOW = "\033[33m"       // Variable pour colorer le texte en jaune
 var ORANGE = "\033[38;5;208m" // Variable pour colorer le texte en orange

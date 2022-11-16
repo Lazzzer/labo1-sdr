@@ -30,6 +30,7 @@ var users, events = utils.GetEntities(entities)
 var inputChan = make(chan string, 1)
 var resChan = make(chan string, 1)
 var quitChan = make(chan bool, 1)
+var commChan = make(chan types.Communication, 1)
 
 // Server est une struct représentant un serveur TCP.
 type Server struct {
@@ -65,6 +66,7 @@ func (s *Server) Run() {
 		log.Fatal(err)
 	}
 
+	// Traite les inputs des différents clients un par un
 	go func() {
 		for {
 			input := <-inputChan
@@ -106,11 +108,11 @@ func (s *Server) initServersConns(listener net.Listener) {
 				s.log(types.INFO, utils.RED+"Server #"+strconv.Itoa(s.Number)+" could not connect to Server #"+strconv.Itoa(number)+utils.RESET)
 				continue
 			} else {
+				// Ajout de la connexion établie dans la map
+				s.log(types.INFO, utils.GREEN+"Server #"+strconv.Itoa(s.Number)+" connected to Server #"+strconv.Itoa(number)+utils.RESET)
 				s.conns[number] = conn
 				nbSuccessConn++
-				s.log(types.INFO, utils.GREEN+"Server #"+strconv.Itoa(s.Number)+" connected to Server #"+strconv.Itoa(number)+utils.RESET)
-
-				// Envoie le numéro du serveur qui se connecte au serveur en ligne
+				// Envoi de son numéro au serveur qui écoute sa connexion
 				_, err = conn.Write([]byte(strconv.Itoa(s.Number) + "\n"))
 				if err != nil {
 					s.log(types.ERROR, err.Error())
@@ -134,8 +136,9 @@ func (s *Server) initServersConns(listener net.Listener) {
 	}
 
 	s.Stamp = 0
-	s.comms = make(map[int]types.Communication)
+	s.comms = make(map[int]types.Communication, len(s.Config.Servers))
 
+	// Lance une goroutine pour chaque serveur connecté qui gère les communications entrantes de synchronisation de l'algorithme de Lamport
 	for _, conn := range s.conns {
 		go s.handleIncomingComms(conn)
 	}
@@ -160,6 +163,111 @@ func (s *Server) handleHandshake(conn net.Conn) {
 	s.log(types.INFO, utils.GREEN+"Server #"+strconv.Itoa(s.Number)+" received a connection from Server #"+strings.TrimSuffix(numberStr, "\n")+utils.RESET)
 	s.conns[number] = conn
 }
+
+func (s *Server) handleIncomingComms(conn net.Conn) {
+	reader := bufio.NewReader(conn)
+	for {
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			s.log(types.ERROR, err.Error())
+			break
+		}
+
+		var comm types.Communication
+		err = json.Unmarshal([]byte(strings.TrimSuffix(input, "\n")), &comm)
+		if err != nil {
+			s.log(types.ERROR, err.Error())
+			break
+		}
+
+		switch comm.Type {
+		case types.Request:
+			s.handleRequest(comm)
+		case types.Acknowledge:
+			s.handleAcknowledge(comm)
+		case types.Release:
+			s.handleRelease(comm)
+		}
+	}
+}
+
+func (s *Server) commsToString() string {
+	var str string
+	str += "["
+	for i := 1; i <= len(s.Config.Servers); i++ {
+		if comm, ok := s.comms[i]; ok {
+			str += "S" + strconv.Itoa(i) + ": " + string(comm.Type) + strconv.Itoa(comm.Stamp)
+		} else {
+			str += "S" + strconv.Itoa(i) + ":  -- "
+		}
+		if i != len(s.Config.Servers) {
+			str += ", "
+		}
+	}
+	str += "]"
+	return str
+}
+func (s *Server) askForCriticalSection() {
+	s.Stamp++
+	s.sendComm(types.Request, utils.MapKeysToArray(s.conns), nil)
+	// TODO : attendre la réponse de tous les serveurs + faire les checks
+}
+
+func (s *Server) sendComm(commType types.CommunicationType, to []int, payload *map[int]types.Event) {
+	communication := types.Communication{
+		Type:  commType,
+		From:  s.Number,
+		To:    to,
+		Stamp: s.Stamp,
+	}
+	if payload == nil {
+		communication.Payload = nil
+	} else {
+		communication.Payload = *payload
+	}
+
+	s.comms[s.Number] = communication
+	s.log(types.LAMPORT, "STATUS: "+s.commsToString()+" OUT "+string(communication.Type)+strconv.Itoa(communication.Stamp)+" -> "+utils.IntToString(communication.To))
+
+	communicationJson, err := json.Marshal(communication)
+	if err != nil {
+		s.log(types.ERROR, err.Error())
+	}
+
+	for _, number := range to {
+		_, err := s.conns[number].Write([]byte(string(communicationJson) + "\n"))
+		if err != nil {
+			s.log(types.ERROR, err.Error())
+		}
+	}
+}
+
+func (s *Server) handleRequest(comm types.Communication) {
+	s.Stamp = utils.Max(s.Stamp, comm.Stamp) + 1
+	s.comms[comm.From] = comm
+	s.log(types.LAMPORT, "STATUS: "+s.commsToString()+" IN  "+string(comm.Type)+strconv.Itoa(comm.Stamp)+" -> S"+strconv.Itoa(s.Number))
+
+	if s.comms[s.Number].Type != types.Request {
+		s.sendComm(types.Acknowledge, []int{comm.From}, nil)
+	}
+}
+
+func (s *Server) handleAcknowledge(comm types.Communication) {
+	if s.comms[comm.From].Type != types.Request {
+		s.Stamp = utils.Max(s.Stamp, comm.Stamp) + 1
+		s.comms[comm.From] = comm
+		s.log(types.LAMPORT, "STATUS: "+s.commsToString()+" IN  "+string(comm.Type)+strconv.Itoa(comm.Stamp)+" -> "+utils.IntToString(comm.To))
+	}
+}
+
+func (s *Server) handleRelease(comm types.Communication) {
+	s.Stamp = utils.Max(s.Stamp, comm.Stamp) + 1
+	s.comms[comm.From] = comm
+	events = comm.Payload
+	s.log(types.LAMPORT, "STATUS: "+s.commsToString()+" IN  "+string(comm.Type)+strconv.Itoa(comm.Stamp)+" -> "+utils.IntToString(comm.To))
+}
+
+// ---------- Fonctions pour la gestion des clients ----------
 
 // handleClientConn gère l'I/O avec un client connecté au serveur
 func (s *Server) handleClientConn(conn net.Conn) {
@@ -191,76 +299,6 @@ func (s *Server) handleClientConn(conn net.Conn) {
 	}
 }
 
-func (s *Server) sendComm(commType types.CommunicationType, to []int, payload *map[int]types.Event) {
-	req := types.Communication{
-		Type:    commType,
-		From:    s.Number,
-		To:      to,
-		Stamp:   s.Stamp,
-		Payload: nil, // TODO
-	}
-
-	s.comms[s.Number] = req
-
-	reqJson, err := json.Marshal(req)
-	if err != nil {
-		s.log(types.ERROR, err.Error())
-	}
-
-	for _, number := range to {
-		_, err := s.conns[number].Write([]byte(string(reqJson) + "\n"))
-		if err != nil {
-			s.log(types.ERROR, err.Error())
-		}
-	}
-}
-
-func (s *Server) handleIncomingComms(conn net.Conn) {
-	reader := bufio.NewReader(conn)
-	for {
-		input, err := reader.ReadString('\n')
-		if err != nil {
-			s.log(types.ERROR, err.Error())
-			break
-		}
-
-		s.log(types.INFO, utils.YELLOW+conn.RemoteAddr().String()+" -> "+strings.TrimSuffix(input, "\n")+utils.RESET)
-		var comm types.Communication
-		err = json.Unmarshal([]byte(strings.TrimSuffix(input, "\n")), &comm)
-
-		if err != nil {
-			s.log(types.ERROR, err.Error())
-		}
-
-		switch comm.Type {
-		case types.Request:
-			s.handleRequest(comm)
-		case types.Acknowledge:
-			s.handleAcknowledge(comm)
-		case types.Release:
-			s.handleRelease(comm)
-		}
-	}
-}
-
-func (s *Server) handleRequest(comm types.Communication) {
-	s.Stamp = utils.Max(s.Stamp, comm.Stamp) + 1
-	s.comms[comm.From] = comm
-
-	if s.comms[s.Number].Type != types.Request {
-		return
-	}
-	s.sendComm(types.Acknowledge, []int{comm.From}, nil)
-}
-
-func (s *Server) handleAcknowledge(comm types.Communication) {
-
-}
-
-func (s *Server) handleRelease(comm types.Communication) {
-
-}
-
 // processCommand permet de traiter l'entrée utilisateur et de lancer la méthode correspondante à la commande saisie.
 // La méthode notifie au serveur l'arrêt de sa boucle de traitement des commandes lorsque la commande "quit" est saisie.
 func (s *Server) processCommand(input string) {
@@ -286,6 +324,7 @@ func (s *Server) processCommand(input string) {
 	}
 
 	s.debugTrace(true)
+	s.askForCriticalSection()
 
 	var response string
 
@@ -557,6 +596,9 @@ func (s *Server) log(logType types.LogType, message string) {
 			log.Println(utils.RED + "(ERROR) " + utils.RESET + message)
 		case types.DEBUG:
 			log.Println(utils.ORANGE + "(DEBUG) " + utils.RESET + message)
+		case types.LAMPORT:
+			log.Println(utils.PINK + "(LAMPORT) " + utils.RESET + message)
+
 		}
 	}
 }
