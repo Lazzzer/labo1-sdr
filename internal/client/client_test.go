@@ -14,9 +14,9 @@ import (
 	"github.com/Lazzzer/labo1-sdr/internal/utils/types"
 )
 
-var testServers = map[int]string{1: "localhost:8081", 2: "localhost:8082"}
-var testConfig = types.Config{Address: "localhost:8081", Servers: testServers}
+var testConfig = types.Config{Address: "localhost:8091", Servers: map[int]string{1: "localhost:8011"}}
 var testingServerConfig = types.ServerConfig{Config: testConfig, Silent: true}
+
 var testingServerDebugConfig = types.ServerConfig{Config: testConfig, Silent: true, Debug: true, DebugDelay: 10}
 
 // TestInput définit un test pour un input du client
@@ -33,11 +33,11 @@ type TestClient struct {
 
 // init() lance les serveurs de test
 func init() {
-	serv := server.Server{Number: 1, Port: "8081", Config: testingServerConfig}
-	servDebug := server.Server{Number: 2, Port: "8082", Config: testingServerDebugConfig}
+	serv := server.Server{Number: 1, Port: "8011", ClientPort: "8091", Config: testingServerConfig}
+	// servDebug := server.Server{Number: 2, Port: "8012", ClientPort: "8092", Config: testingServerDebugConfig}
 
 	go serv.Run()
-	go servDebug.Run()
+	// go servDebug.Run()
 }
 
 // Run est une méthode de TestClient qui peut accepter plusieurs tests à run
@@ -325,49 +325,49 @@ func TestRegisterCommand(t *testing.T) {
 	testClient.Run(tests, t)
 }
 
-func TestCommandsConcurrentlyNoSharedSection(t *testing.T) {
+// func TestCommandsConcurrentlyNoSharedSection(t *testing.T) {
 
-	tests := [][]TestInput{
-		{
-			{
-				Description: "Send show help and receive message",
-				Input:       "help\n",
-				Expected:    utils.MESSAGE.Help,
-			},
-		},
-		{
-			{
-				Description: "Send show help and receive message",
-				Input:       "help\n",
-				Expected:    utils.MESSAGE.Help,
-			},
-		},
-	}
+// 	tests := [][]TestInput{
+// 		{
+// 			{
+// 				Description: "Send show help and receive message",
+// 				Input:       "help\n",
+// 				Expected:    utils.MESSAGE.Help,
+// 			},
+// 		},
+// 		{
+// 			{
+// 				Description: "Send show help and receive message",
+// 				Input:       "help\n",
+// 				Expected:    utils.MESSAGE.Help,
+// 			},
+// 		},
+// 	}
 
-	runConcurrent(2, tests, t)
-}
+// 	runConcurrent(2, tests, t)
+// }
 
-func TestCommandsConcurrentlyReadOnly(t *testing.T) {
+// func TestCommandsConcurrentlyReadOnly(t *testing.T) {
 
-	var message = utils.RED + "Closed" + utils.RESET + "\t#1 " + utils.BOLD + utils.CYAN + "Montreux Jazz 2022" + utils.RESET + " / Creator: claude\n\n" +
-		utils.GREEN + "Open" + utils.RESET + "\t#2 " + utils.BOLD + utils.CYAN + "Baleinev 2023" + utils.RESET + " / Creator: john\n\n" +
-		utils.GREEN + "Open" + utils.RESET + "\t#3 " + utils.BOLD + utils.CYAN + "Balélec 2023" + utils.RESET + " / Creator: jane\n"
+// 	var message = utils.RED + "Closed" + utils.RESET + "\t#1 " + utils.BOLD + utils.CYAN + "Montreux Jazz 2022" + utils.RESET + " / Creator: claude\n\n" +
+// 		utils.GREEN + "Open" + utils.RESET + "\t#2 " + utils.BOLD + utils.CYAN + "Baleinev 2023" + utils.RESET + " / Creator: john\n\n" +
+// 		utils.GREEN + "Open" + utils.RESET + "\t#3 " + utils.BOLD + utils.CYAN + "Balélec 2023" + utils.RESET + " / Creator: jane\n"
 
-	tests := [][]TestInput{
-		{
-			{
-				Description: "Send show command and receive message",
-				Input:       "show\n",
-				Expected:    utils.MESSAGE.WrapEvent(message),
-			},
-		},
-		{
-			{
-				Description: "Send show command and receive message",
-				Input:       "show\n",
-				Expected:    utils.MESSAGE.WrapEvent(message),
-			},
-		},
-	}
-	runConcurrent(2, tests, t)
-}
+// 	tests := [][]TestInput{
+// 		{
+// 			{
+// 				Description: "Send show command and receive message",
+// 				Input:       "show\n",
+// 				Expected:    utils.MESSAGE.WrapEvent(message),
+// 			},
+// 		},
+// 		{
+// 			{
+// 				Description: "Send show command and receive message",
+// 				Input:       "show\n",
+// 				Expected:    utils.MESSAGE.WrapEvent(message),
+// 			},
+// 		},
+// 	}
+// 	runConcurrent(2, tests, t)
+// }

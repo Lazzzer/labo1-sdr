@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"reflect"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -27,6 +26,11 @@ import (
 
 //go:embed entities.json
 var entities string // variable qui permet de charger le fichier des entités dans les binaries finales de l'application
+var users, events = utils.GetEntities(entities)
+var inputChan = make(chan string, 1)
+
+var resChan = make(chan string, 1)
+var quitChan = make(chan bool, 1)
 
 // Server est une struct représentant un serveur TCP.
 type Server struct {
@@ -37,8 +41,6 @@ type Server struct {
 	Stamp      int                         // Estampille actuelle du serveur
 	conns      map[int]net.Conn            // Map de connexions des serveurs
 	comms      map[int]types.Communication // Map des dernières communications entre les serveurs
-	eChan      chan map[int]types.Event    // Canal d'accès à la map contenant des manifestations
-	uChan      chan map[int]types.User     // Canal d'accès à la map contenant des utilisateurs
 }
 
 // Run lance le serveur et attend les connexions des clients.
@@ -57,14 +59,6 @@ func (s *Server) Run() {
 
 	s.initServersConns(srvListener)
 
-	users, events := utils.GetEntities(entities)
-
-	s.eChan = make(chan map[int]types.Event, 1)
-	s.uChan = make(chan map[int]types.User, 1)
-
-	s.uChan <- users
-	s.eChan <- events
-
 	if !s.Config.Silent {
 		log.Println(utils.GREEN + "(INFO) " + "Server #" + strconv.Itoa(s.Number) + " started on port " + s.ClientPort + utils.RESET)
 	}
@@ -74,6 +68,13 @@ func (s *Server) Run() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	go func() {
+		for {
+			input := <-inputChan
+			s.processCommand(input)
+		}
+	}()
 
 	for {
 		conn, err := clientListener.Accept()
@@ -87,6 +88,7 @@ func (s *Server) Run() {
 		}
 		go s.handleClientConn(conn)
 	}
+
 	err = srvListener.Close()
 	if err != nil {
 		log.Println(err)
@@ -179,22 +181,24 @@ func (s *Server) handleClientConn(conn net.Conn) {
 		if !s.Config.Silent {
 			log.Print(utils.YELLOW + "(INFO) " + conn.RemoteAddr().String() + " -> " + strings.TrimSuffix(input, "\n") + utils.RESET)
 		}
-		response, end := s.processCommand(strings.TrimSpace(input))
+		inputChan <- input
 
-		if end {
+		select {
+		case response := <-resChan:
+			_, err := conn.Write([]byte(response))
+			if err != nil {
+				log.Println(err)
+			}
+		case <-quitChan:
 			if !s.Config.Silent {
 				log.Println(utils.RED + "(INFO) " + conn.RemoteAddr().String() + " disconnected" + utils.RESET)
 			}
-			break
+			err := conn.Close()
+			if err != nil {
+				log.Println(err)
+			}
+			return
 		}
-		_, err = conn.Write([]byte(response))
-		if err != nil {
-			log.Println(err)
-		}
-	}
-	err := conn.Close()
-	if err != nil {
-		log.Println(err)
 	}
 }
 
@@ -272,19 +276,33 @@ func (s *Server) handleRelease(comm types.Communication) {
 
 // processCommand permet de traiter l'entrée utilisateur et de lancer la méthode correspondante à la commande saisie.
 // La méthode notifie au serveur l'arrêt de sa boucle de traitement des commandes lorsque la commande "quit" est saisie.
-func (s *Server) processCommand(command string) (string, bool) {
-	args := strings.Fields(command)
+func (s *Server) processCommand(input string) {
+	args := strings.Fields(input)
 
 	if len(args) == 0 {
-		return "Empty command", false
+		resChan <- "Empty command"
+		return
 	}
-
-	var response string
 
 	name := args[0]
 	args = args[1:]
-	end := false
 
+	// Commandes n'ayant pas besoin d'accès à la section critique
+
+	switch name {
+	case utils.QUIT.Name:
+		quitChan <- true
+		return
+	case utils.HELP.Name:
+		resChan <- s.help(args)
+		return
+	}
+
+	s.debugTrace(true)
+
+	var response string
+
+	// Commandes avec accès à la section critique
 	switch name {
 	case utils.HELP.Name:
 		response = s.help(args)
@@ -298,21 +316,18 @@ func (s *Server) processCommand(command string) (string, bool) {
 		response = s.show(args)
 	case utils.JOBS.Name:
 		response = s.jobs(args)
-	case utils.QUIT.Name:
-		end = true
 	default:
 		response = utils.MESSAGE.Error.InvalidCommand
 	}
+	resChan <- response
 
-	return response, end
+	s.debugTrace(false)
 }
 
 // ---------- Fonctions pour chaque commande ----------
 
 // help est la méthode appelée par la commande "help" et affiche un message d'aide listant chaque commande et ses arguments.
 func (s *Server) help(args []string) string {
-	s.Stamp++
-	s.sendComm(types.Request, utils.MapKeysToArray(s.conns), nil)
 	if msg, ok := s.checkNbArgs(args, &utils.HELP, false); !ok {
 		return msg
 	}
@@ -351,9 +366,6 @@ func (s *Server) createEvent(args []string) string {
 			jobsName = append(jobsName, args[i])
 		}
 	}
-
-	events := getEntitiesFromChannel(s.eChan, s)
-	defer loadEntitiesToChannel(s.eChan, events, s)
 
 	eventId := len(events) + 1
 	currentJobId := 1
@@ -427,9 +439,6 @@ func (s *Server) register(args []string) string {
 		return utils.MESSAGE.Error.AccessDenied
 	}
 
-	events := getEntitiesFromChannel(s.eChan, s)
-	defer loadEntitiesToChannel(s.eChan, events, s)
-
 	event, okEvent := events[idEvent]
 
 	if !okEvent {
@@ -478,15 +487,10 @@ func (s *Server) jobs(args []string) string {
 		return utils.MESSAGE.Error.MustBeInteger
 	}
 
-	events := getEntitiesFromChannel(s.eChan, s)
-	defer loadEntitiesToChannel(s.eChan, events, s)
-
 	event, ok := events[idEvent]
 	if !ok {
 		return utils.MESSAGE.Error.EventNotFound
 	}
-
-	users := getEntitiesFromChannel(s.uChan, s)
 
 	eventTitle := "#" + strconv.Itoa(idEvent) + " " + utils.BOLD + utils.CYAN + event.Name + utils.RESET + "\n\n"
 	firstLine := utils.BOLD + "Volunteers" + utils.RESET + "\t"
@@ -500,8 +504,6 @@ func (s *Server) jobs(args []string) string {
 			numberOfUsers++
 		}
 	}
-
-	loadEntitiesToChannel(s.uChan, users, s)
 
 	var builder strings.Builder
 	aligner := "\t"
@@ -544,36 +546,17 @@ func (s *Server) jobs(args []string) string {
 
 // ---------- Fonctions helpers ----------
 
-// getEntitiesFromChannel permet de récupérer une map de manifestations ou d'utilisateurs depuis un canal.
-//
-// En mode debug, le serveur attend un certain laps de temps et log l'accès à la section critique en question avant de retourner l'entité.
-func getEntitiesFromChannel[T types.Event | types.User](ch <-chan map[int]T, s *Server) map[int]T {
-	entities := <-ch
-	s.debug(reflect.TypeOf(&entities).Elem().Elem().String(), true)
-
-	return entities
-}
-
-// loadEntitiesToChannel permet de charger une map de manifestations ou d'utilisateurs dans un canal.
-//
-// En mode debug, le serveur attend un certain laps de temps et log l'accès à la section critique en question avant de laisser l'exécution
-// se poursuivre.
-func loadEntitiesToChannel[T types.Event | types.User](ch chan<- map[int]T, entities map[int]T, s *Server) {
-	ch <- entities
-	s.debug(reflect.TypeOf(&entities).Elem().Elem().String(), false)
-}
-
-// debug permet d'afficher des informations de debug si le mode debug est activé.
+// debugTrace permet d'afficher des informations de debugTrace si le mode debugTrace est activé.
 //
 // La méthode ralentit artificiellement l'exécution du serveur pour tester les accès concurrents d'une durée égale à la propriété
 // DebugDelay de Config. Le paramètre start indique s'il s'agit d'un début ou d'une fin d'accès à une section critique.
-func (s *Server) debug(entity string, start bool) {
+func (s *Server) debugTrace(start bool) {
 	if s.Config.Debug {
 		if start {
-			log.Println(utils.ORANGE + "(DEBUG) " + utils.RED + "ACCESSING" + utils.ORANGE + " shared section for entity: " + entity + utils.RESET)
+			log.Println(utils.ORANGE + "(DEBUG) " + utils.RED + "ACCESSING SHARED SECTION" + utils.RESET)
 			time.Sleep(time.Duration(s.Config.DebugDelay) * time.Second)
 		} else {
-			log.Println(utils.ORANGE + "(DEBUG) " + utils.GREEN + "RELEASING" + utils.ORANGE + " shared section for entity: " + entity + utils.RESET)
+			log.Println(utils.ORANGE + "(DEBUG) " + utils.GREEN + "RELEASING SHARED SECTION" + utils.RESET)
 		}
 	}
 }
@@ -581,8 +564,6 @@ func (s *Server) debug(entity string, start bool) {
 // verifyUser permet de vérifier si un utilisateur existe dans la map des utilisateurs et retourne sa clé dans la map et un booléen
 // indiquant sa présence.
 func (s *Server) verifyUser(username, password string) (int, bool) {
-	users := getEntitiesFromChannel(s.uChan, s)
-	defer loadEntitiesToChannel(s.uChan, users, s)
 
 	for key, user := range users {
 		if user.Username == username && user.Password == password {
@@ -647,9 +628,6 @@ func (s *Server) addUserToJob(event *types.Event, idJob, idUser int) (string, bo
 // closeEvent permet de fermer une manifestation et retourne un message vide et true si l'opération a réussi.
 // En cas d'échec de fermeture, la méthode retourne un message d'erreur spécifique et false.
 func (s *Server) closeEvent(idEvent, idUser int) (string, bool) {
-	events := getEntitiesFromChannel(s.eChan, s)
-	defer loadEntitiesToChannel(s.eChan, events, s)
-
 	event, okEvent := events[idEvent]
 
 	if !okEvent {
@@ -685,11 +663,6 @@ func (s *Server) checkNbArgs(args []string, command *types.Command, optional boo
 
 // showAllEvents permet d'afficher toutes les manifestations.
 func (s *Server) showAllEvents() string {
-	events := getEntitiesFromChannel(s.eChan, s)
-	users := getEntitiesFromChannel(s.uChan, s)
-	defer loadEntitiesToChannel(s.eChan, events, s)
-	defer loadEntitiesToChannel(s.uChan, users, s)
-
 	var response string
 
 	for i := 1; i <= len(events); i++ {
@@ -712,14 +685,9 @@ func (s *Server) showAllEvents() string {
 // showEvent permet d'afficher la manifestation correspondant à l'identifiant passé en paramètre et retourne un message vide et true
 // si l'opération a réussi. En cas d'échec d'affichage, la méthode retourne un message d'erreur spécifique et false.
 func (s *Server) showEvent(idEvent int) (string, bool) {
-	events := getEntitiesFromChannel(s.eChan, s)
-	defer loadEntitiesToChannel(s.eChan, events, s)
-
 	event, ok := events[idEvent]
 
 	if ok {
-		users := getEntitiesFromChannel(s.uChan, s)
-		defer loadEntitiesToChannel(s.uChan, users, s)
 		creator := users[event.CreatorId]
 
 		response := "#" + strconv.Itoa(idEvent) + " " + utils.BOLD + utils.CYAN + event.Name + utils.RESET + "\n\n"
