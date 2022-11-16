@@ -31,6 +31,7 @@ var inputChan = make(chan string, 1)
 var resChan = make(chan string, 1)
 var quitChan = make(chan bool, 1)
 var commChan = make(chan types.Communication, 1)
+var accessChan = make(chan bool, 1)
 
 // Server est une struct représentant un serveur TCP.
 type Server struct {
@@ -208,9 +209,38 @@ func (s *Server) commsToString() string {
 	return str
 }
 func (s *Server) askForCriticalSection() {
+	hasAccess := false
+
 	s.Stamp++
 	s.sendComm(types.Request, utils.MapKeysToArray(s.conns), nil)
-	// TODO : attendre la réponse de tous les serveurs + faire les checks
+
+	for !hasAccess {
+		hasOldestReq := true
+		for i := 1; i <= len(s.Config.Servers); i++ {
+			if i == s.Number {
+				continue
+			}
+			if comm, ok := s.comms[i]; ok {
+				if comm.Type == types.Request {
+					if s.comms[s.Number].Stamp > comm.Stamp {
+						hasOldestReq = false
+						break
+					} else if s.comms[s.Number].Stamp == comm.Stamp && s.Number > comm.From {
+						hasOldestReq = false
+						break
+					}
+				}
+			} else {
+				hasOldestReq = false
+				break
+			}
+		}
+		if hasOldestReq {
+			hasAccess = true
+			s.log(types.LAMPORT, utils.GREEN+"Server #"+strconv.Itoa(s.Number)+" has access to the critical section"+utils.RESET)
+		}
+	}
+	accessChan <- true
 }
 
 func (s *Server) sendComm(commType types.CommunicationType, to []int, payload *map[int]types.Event) {
@@ -324,7 +354,9 @@ func (s *Server) processCommand(input string) {
 	}
 
 	s.debugTrace(true)
-	s.askForCriticalSection()
+	go s.askForCriticalSection()
+
+	<-accessChan
 
 	var response string
 
