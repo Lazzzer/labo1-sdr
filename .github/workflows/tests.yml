@@ -1,9 +1,6 @@
 name: Testing on Windows, macOS and Linux
 
-on
-  push:
-    branches:
-      - master
+on: [push]
 jobs:
   tests-ubuntu:
     runs-on: ubuntu-latest
