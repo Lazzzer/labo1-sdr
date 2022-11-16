@@ -11,12 +11,8 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: "1.19.x"
-
-      - name: Build
-        run: go build -v .
-
       - name: Test
-        run: go test -v ./client
+        run: go test -race ./internal/client/. -v
   tests-windows:
     runs-on: windows-latest
     steps:
@@ -26,12 +22,8 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: "1.19.x"
-
-      - name: Build
-        run: go build -v .
-
       - name: Test
-        run: go test -v ./client
+        run: go test -race ./internal/client/. -v
   test-macos:
     runs-on: macos-latest
     steps:
@@ -41,9 +33,5 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: "1.19.x"
-
-      - name: Build
-        run: go build -v .
-
       - name: Test
-        run: go test -v ./client
+        run: go test -race ./internal/client/. -v
