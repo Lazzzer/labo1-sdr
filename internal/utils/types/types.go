@@ -17,12 +17,20 @@ type ServerConfig struct {
 	DebugDelay  int            `json:"debug_delay,omitempty"` // Délai d'attente pour la simulation de la concurrence
 }
 
-type CommunicationType int
+type LogType string
 
 const (
-	Request     CommunicationType = 0
-	Acknowledge CommunicationType = 1
-	Release     CommunicationType = 2
+	INFO  LogType = "INFO"
+	ERROR LogType = "ERROR"
+	DEBUG LogType = "DEBUG"
+)
+
+type CommunicationType string
+
+const (
+	Request     CommunicationType = "REQ"
+	Acknowledge CommunicationType = "ACK"
+	Release     CommunicationType = "REL"
 )
 
 type Communication struct {

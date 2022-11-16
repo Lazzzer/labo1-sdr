@@ -28,7 +28,6 @@ import (
 var entities string // variable qui permet de charger le fichier des entités dans les binaries finales de l'application
 var users, events = utils.GetEntities(entities)
 var inputChan = make(chan string, 1)
-
 var resChan = make(chan string, 1)
 var quitChan = make(chan bool, 1)
 
@@ -59,11 +58,8 @@ func (s *Server) Run() {
 
 	s.initServersConns(srvListener)
 
-	if !s.Config.Silent {
-		log.Println(utils.GREEN + "(INFO) " + "Server #" + strconv.Itoa(s.Number) + " started on port " + s.ClientPort + utils.RESET)
-	}
-
 	// Le serveur est prêt à recevoir des connexions de clients
+	s.log(types.INFO, "Listening for clients connections on port "+s.ClientPort)
 	clientListener, err = net.Listen("tcp", ":"+s.ClientPort)
 	if err != nil {
 		log.Fatal(err)
@@ -79,24 +75,22 @@ func (s *Server) Run() {
 	for {
 		conn, err := clientListener.Accept()
 		if err != nil {
-			log.Println(utils.RED + "(ERROR) " + err.Error() + utils.RESET)
-			break
+			s.log(types.ERROR, err.Error())
+			break // TODO: Better error handling ?
 		} else {
-			if !s.Config.Silent {
-				log.Println(utils.GREEN + "(INFO) " + conn.RemoteAddr().String() + " connected" + utils.RESET)
-			}
+			s.log(types.INFO, utils.GREEN+conn.RemoteAddr().String()+" connected"+utils.RESET)
 		}
 		go s.handleClientConn(conn)
 	}
 
 	err = srvListener.Close()
 	if err != nil {
-		log.Println(err)
+		s.log(types.ERROR, err.Error())
 	}
 
 	err = clientListener.Close()
 	if err != nil {
-		log.Println(err)
+		s.log(types.ERROR, err.Error())
 	}
 }
 
@@ -109,29 +103,33 @@ func (s *Server) initServersConns(listener net.Listener) {
 		if number != s.Number {
 			conn, err := net.Dial("tcp", s.Config.Servers[number])
 			if err != nil {
-				log.Println(utils.GREEN + "(INFO) Server #" + strconv.Itoa(s.Number) + " could not connect to Server #" + strconv.Itoa(number) + ". Switch to listening connections." + utils.RESET)
+				s.log(types.INFO, utils.RED+"Server #"+strconv.Itoa(s.Number)+" could not connect to Server #"+strconv.Itoa(number)+utils.RESET)
 				continue
 			} else {
 				s.conns[number] = conn
 				nbSuccessConn++
-				log.Println(utils.GREEN + "(INFO) Server #" + strconv.Itoa(s.Number) + " connected to Server #" + strconv.Itoa(number) + utils.RESET)
+				s.log(types.INFO, utils.GREEN+"Server #"+strconv.Itoa(s.Number)+" connected to Server #"+strconv.Itoa(number)+utils.RESET)
+
 				// Envoie le numéro du serveur qui se connecte au serveur en ligne
 				_, err = conn.Write([]byte(strconv.Itoa(s.Number) + "\n"))
 				if err != nil {
-					log.Println(err)
+					s.log(types.ERROR, err.Error())
 				}
 			}
 		}
 	}
 
 	// Se met en mode attente de connexion des autres serveurs s'il n'arrive plus à se connecter à un serveur
-	for nbSuccessConn < len(s.Config.Servers)-1 {
-		conn, err := listener.Accept()
-		if err != nil {
-			log.Fatal(err)
-		} else {
-			s.handleHandshake(conn)
-			nbSuccessConn++
+	if nbSuccessConn < len(s.Config.Servers)-1 {
+		s.log(types.INFO, "Listening for missing servers connections")
+		for nbSuccessConn < len(s.Config.Servers)-1 {
+			conn, err := listener.Accept()
+			if err != nil {
+				log.Fatal(err)
+			} else {
+				s.handleHandshake(conn)
+				nbSuccessConn++
+			}
 		}
 	}
 
@@ -150,20 +148,16 @@ func (s *Server) handleHandshake(conn net.Conn) {
 
 	// Récupère le numéro du serveur
 	numberStr, err := reader.ReadString('\n')
-
 	if err != nil {
-		log.Println(utils.RED + "(ERROR) " + err.Error() + utils.RESET)
-		return
-	}
-	numberStr = numberStr[:len(numberStr)-1]
-	number, err := strconv.Atoi(numberStr)
-	if err != nil {
-		log.Println(utils.RED + "(ERROR) " + err.Error() + utils.RESET)
-		return
+		log.Fatal(err)
 	}
 
-	log.Println(utils.GREEN + "(INFO) Server #" + strconv.Itoa(s.Number) + " received a connection from Server #" + numberStr + utils.RESET)
-	println(s.conns)
+	number, err := strconv.Atoi(strings.TrimSuffix(numberStr, "\n"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	s.log(types.INFO, utils.GREEN+"Server #"+strconv.Itoa(s.Number)+" received a connection from Server #"+strings.TrimSuffix(numberStr, "\n")+utils.RESET)
 	s.conns[number] = conn
 }
 
@@ -172,30 +166,25 @@ func (s *Server) handleClientConn(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	for {
 		input, err := reader.ReadString('\n')
-
 		if err != nil {
-			log.Println(utils.RED + "(ERROR) " + err.Error() + utils.RESET)
+			s.log(types.ERROR, err.Error())
 			break
 		}
 
-		if !s.Config.Silent {
-			log.Print(utils.YELLOW + "(INFO) " + conn.RemoteAddr().String() + " -> " + strings.TrimSuffix(input, "\n") + utils.RESET)
-		}
+		s.log(types.INFO, utils.YELLOW+conn.RemoteAddr().String()+" -> "+strings.TrimSuffix(input, "\n")+utils.RESET)
 		inputChan <- input
 
 		select {
 		case response := <-resChan:
 			_, err := conn.Write([]byte(response))
 			if err != nil {
-				log.Println(err)
+				s.log(types.ERROR, err.Error())
 			}
 		case <-quitChan:
-			if !s.Config.Silent {
-				log.Println(utils.RED + "(INFO) " + conn.RemoteAddr().String() + " disconnected" + utils.RESET)
-			}
+			s.log(types.INFO, utils.RED+conn.RemoteAddr().String()+" disconnected"+utils.RESET)
 			err := conn.Close()
 			if err != nil {
-				log.Println(err)
+				s.log(types.ERROR, err.Error())
 			}
 			return
 		}
@@ -215,13 +204,13 @@ func (s *Server) sendComm(commType types.CommunicationType, to []int, payload *m
 
 	reqJson, err := json.Marshal(req)
 	if err != nil {
-		log.Println(err)
+		s.log(types.ERROR, err.Error())
 	}
 
 	for _, number := range to {
 		_, err := s.conns[number].Write([]byte(string(reqJson) + "\n"))
 		if err != nil {
-			log.Println(err)
+			s.log(types.ERROR, err.Error())
 		}
 	}
 }
@@ -230,19 +219,17 @@ func (s *Server) handleIncomingComms(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	for {
 		input, err := reader.ReadString('\n')
-
 		if err != nil {
-			log.Println(utils.RED + "(ERROR) " + err.Error() + utils.RESET)
+			s.log(types.ERROR, err.Error())
 			break
 		}
 
-		log.Print(utils.YELLOW + "(INFO) " + conn.RemoteAddr().String() + " -> " + strings.TrimSuffix(input, "\n") + utils.RESET)
-
+		s.log(types.INFO, utils.YELLOW+conn.RemoteAddr().String()+" -> "+strings.TrimSuffix(input, "\n")+utils.RESET)
 		var comm types.Communication
 		err = json.Unmarshal([]byte(strings.TrimSuffix(input, "\n")), &comm)
 
 		if err != nil {
-			log.Println(err)
+			s.log(types.ERROR, err.Error())
 		}
 
 		switch comm.Type {
@@ -515,13 +502,13 @@ func (s *Server) jobs(args []string) string {
 	w := tabwriter.NewWriter(&builder, 0, 0, 3, ' ', 0)
 	_, err := fmt.Fprintln(w, firstLine)
 	if err != nil {
-		log.Println(err)
+		s.log(types.ERROR, err.Error())
 	}
 
 	if numberOfUsers == 0 {
 		err := w.Flush()
 		if err != nil {
-			log.Println(err)
+			s.log(types.ERROR, err.Error())
 		}
 		return utils.MESSAGE.WrapEvent(eventTitle + builder.String() + "\nThere is currently no volunteers for this event.\n")
 	}
@@ -530,7 +517,7 @@ func (s *Server) jobs(args []string) string {
 		for j := 0; j < len(allUsersWorking[i]); j++ {
 			_, err = fmt.Fprintln(w, allUsersWorking[i][j]+aligner+"✅"+endColumn)
 			if err != nil {
-				log.Println(err)
+				s.log(types.ERROR, err.Error())
 			}
 		}
 		aligner += "\t"
@@ -538,7 +525,7 @@ func (s *Server) jobs(args []string) string {
 	}
 	err = w.Flush()
 	if err != nil {
-		log.Println(err)
+		s.log(types.ERROR, err.Error())
 	}
 
 	return utils.MESSAGE.WrapEvent(eventTitle + builder.String())
@@ -553,10 +540,23 @@ func (s *Server) jobs(args []string) string {
 func (s *Server) debugTrace(start bool) {
 	if s.Config.Debug {
 		if start {
-			log.Println(utils.ORANGE + "(DEBUG) " + utils.RED + "ACCESSING SHARED SECTION" + utils.RESET)
+			s.log(types.DEBUG, utils.RED+"ACCESSING SHARED SECTION"+utils.RESET)
 			time.Sleep(time.Duration(s.Config.DebugDelay) * time.Second)
 		} else {
-			log.Println(utils.ORANGE + "(DEBUG) " + utils.GREEN + "RELEASING SHARED SECTION" + utils.RESET)
+			s.log(types.DEBUG, utils.GREEN+"RELEASING SHARED SECTION"+utils.RESET)
+		}
+	}
+}
+
+func (s *Server) log(logType types.LogType, message string) {
+	if !s.Config.Silent {
+		switch logType {
+		case types.INFO:
+			log.Println(utils.CYAN + "(INFO) " + utils.RESET + message)
+		case types.ERROR:
+			log.Println(utils.RED + "(ERROR) " + utils.RESET + message)
+		case types.DEBUG:
+			log.Println(utils.ORANGE + "(DEBUG) " + utils.RESET + message)
 		}
 	}
 }
