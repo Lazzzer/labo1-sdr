@@ -235,6 +235,7 @@ func (s *Server) commsToString() string {
 func (s *Server) verifyCriticalSection() {
 	comms := <-commsAccessChan
 	if ownComm, ok := comms[s.Number]; !ok || ownComm.Type != types.Request {
+		commsAccessChan <- comms
 		return
 	}
 
@@ -254,10 +255,13 @@ func (s *Server) verifyCriticalSection() {
 				hasOldestReq = false
 				break
 			}
+		} else if !ok {
+			hasOldestReq = false
+			break
 		}
 	}
+	commsAccessChan <- comms
 	if hasOldestReq {
-		commsAccessChan <- comms
 		accessChan <- true
 		s.log(types.LAMPORT, utils.GREEN+"Server #"+strconv.Itoa(s.Number)+" has access to the critical section"+utils.RESET)
 	}
