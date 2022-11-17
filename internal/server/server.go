@@ -31,6 +31,8 @@ var inputChan = make(chan string, 1)
 var resChan = make(chan string, 1)
 var quitChan = make(chan bool, 1)
 var commChan = make(chan types.Communication, 1)
+var reqChan = make(chan bool, 1)
+var relChan = make(chan bool, 1)
 var accessChan = make(chan bool, 1)
 
 // Server est une struct représentant un serveur TCP.
@@ -167,6 +169,30 @@ func (s *Server) handleHandshake(conn net.Conn) {
 
 func (s *Server) handleIncomingComms(conn net.Conn) {
 	reader := bufio.NewReader(conn)
+
+	go func() {
+		for {
+			select {
+			case <-reqChan: // Demande d'accès à la section critique
+				s.Stamp++
+				s.sendComm(types.Request, utils.MapKeysToArray(s.conns), nil)
+			case <-relChan: // Libération de la section critique
+				s.Stamp++
+				s.sendComm(types.Release, utils.MapKeysToArray(s.conns), &events)
+			case comm := <-commChan: // Réception d'une communication
+				switch comm.Type {
+				case types.Request:
+					s.handleRequest(comm)
+				case types.Acknowledge:
+					s.handleAcknowledge(comm)
+				case types.Release:
+					s.handleRelease(comm)
+				}
+			}
+		}
+
+	}()
+
 	for {
 		input, err := reader.ReadString('\n')
 		if err != nil {
@@ -181,14 +207,7 @@ func (s *Server) handleIncomingComms(conn net.Conn) {
 			break
 		}
 
-		switch comm.Type {
-		case types.Request:
-			s.handleRequest(comm)
-		case types.Acknowledge:
-			s.handleAcknowledge(comm)
-		case types.Release:
-			s.handleRelease(comm)
-		}
+		commChan <- comm
 	}
 }
 
@@ -208,39 +227,35 @@ func (s *Server) commsToString() string {
 	str += "]"
 	return str
 }
-func (s *Server) askForCriticalSection() {
-	hasAccess := false
+func (s *Server) verifyCriticalSection() {
 
-	s.Stamp++
-	s.sendComm(types.Request, utils.MapKeysToArray(s.conns), nil)
+	if ownComm, ok := s.comms[s.Number]; !ok || ownComm.Type != types.Request {
+		return
+	}
 
-	for !hasAccess {
-		hasOldestReq := true
-		for i := 1; i <= len(s.Config.Servers); i++ {
-			if i == s.Number {
-				continue
-			}
-			if comm, ok := s.comms[i]; ok {
-				if comm.Type == types.Request {
-					if s.comms[s.Number].Stamp > comm.Stamp {
-						hasOldestReq = false
-						break
-					} else if s.comms[s.Number].Stamp == comm.Stamp && s.Number > comm.From {
-						hasOldestReq = false
-						break
-					}
-				}
-			} else {
+	var ownComm types.Communication
+
+	if comm, ok := s.comms[s.Number]; ok {
+		ownComm = comm
+	}
+
+	hasOldestReq := true
+	for i := 1; i <= len(s.Config.Servers); i++ {
+		if i == s.Number {
+			continue
+		}
+		if comm, ok := s.comms[i]; ok && comm.Type == types.Request {
+			if ownComm.Stamp > comm.Stamp || (ownComm.Stamp == comm.Stamp && s.Number > comm.From) {
 				hasOldestReq = false
 				break
 			}
 		}
-		if hasOldestReq {
-			hasAccess = true
-			s.log(types.LAMPORT, utils.GREEN+"Server #"+strconv.Itoa(s.Number)+" has access to the critical section"+utils.RESET)
-		}
 	}
-	accessChan <- true
+	if hasOldestReq {
+		accessChan <- true
+		s.log(types.LAMPORT, utils.GREEN+"Server #"+strconv.Itoa(s.Number)+" has access to the critical section"+utils.RESET)
+	}
+
 }
 
 func (s *Server) sendComm(commType types.CommunicationType, to []int, payload *map[int]types.Event) {
@@ -277,17 +292,21 @@ func (s *Server) handleRequest(comm types.Communication) {
 	s.comms[comm.From] = comm
 	s.log(types.LAMPORT, "STATUS: "+s.commsToString()+" IN  "+string(comm.Type)+strconv.Itoa(comm.Stamp)+" -> S"+strconv.Itoa(s.Number))
 
-	if s.comms[s.Number].Type != types.Request {
+	if ownComm, ok := s.comms[s.Number]; !ok || ownComm.Type != types.Request {
 		s.sendComm(types.Acknowledge, []int{comm.From}, nil)
 	}
+
+	s.verifyCriticalSection()
 }
 
 func (s *Server) handleAcknowledge(comm types.Communication) {
-	if s.comms[comm.From].Type != types.Request {
-		s.Stamp = utils.Max(s.Stamp, comm.Stamp) + 1
+	s.Stamp = utils.Max(s.Stamp, comm.Stamp) + 1
+	if ownComm, ok := s.comms[comm.From]; !ok || ownComm.Type != types.Request {
 		s.comms[comm.From] = comm
 		s.log(types.LAMPORT, "STATUS: "+s.commsToString()+" IN  "+string(comm.Type)+strconv.Itoa(comm.Stamp)+" -> "+utils.IntToString(comm.To))
 	}
+
+	s.verifyCriticalSection()
 }
 
 func (s *Server) handleRelease(comm types.Communication) {
@@ -295,6 +314,8 @@ func (s *Server) handleRelease(comm types.Communication) {
 	s.comms[comm.From] = comm
 	events = comm.Payload
 	s.log(types.LAMPORT, "STATUS: "+s.commsToString()+" IN  "+string(comm.Type)+strconv.Itoa(comm.Stamp)+" -> "+utils.IntToString(comm.To))
+
+	s.verifyCriticalSection()
 }
 
 // ---------- Fonctions pour la gestion des clients ----------
@@ -353,10 +374,10 @@ func (s *Server) processCommand(input string) {
 		return
 	}
 
-	s.debugTrace(true)
-	go s.askForCriticalSection()
-
+	reqChan <- true
 	<-accessChan
+
+	s.debugTrace(true)
 
 	var response string
 
@@ -378,6 +399,7 @@ func (s *Server) processCommand(input string) {
 		response = utils.MESSAGE.Error.InvalidCommand
 	}
 	resChan <- response
+	relChan <- true
 
 	s.debugTrace(false)
 }
