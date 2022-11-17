@@ -31,6 +31,7 @@ var inputChan = make(chan string, 1)
 var resChan = make(chan string, 1)
 var quitChan = make(chan bool, 1)
 var commChan = make(chan types.Communication, 1)
+var commsAccessChan = make(chan map[int]types.Communication, 1)
 var reqChan = make(chan bool, 1)
 var relChan = make(chan bool, 1)
 var accessChan = make(chan bool, 1)
@@ -140,6 +141,7 @@ func (s *Server) initServersConns(listener net.Listener) {
 
 	s.Stamp = 0
 	s.comms = make(map[int]types.Communication, len(s.Config.Servers))
+	commsAccessChan <- s.comms
 
 	// Lance une goroutine pour chaque serveur connecté qui gère les communications entrantes de synchronisation de l'algorithme de Lamport
 	for _, conn := range s.conns {
@@ -190,7 +192,6 @@ func (s *Server) handleIncomingComms(conn net.Conn) {
 				}
 			}
 		}
-
 	}()
 
 	for {
@@ -212,10 +213,13 @@ func (s *Server) handleIncomingComms(conn net.Conn) {
 }
 
 func (s *Server) commsToString() string {
+	comms := <-commsAccessChan
+	defer func() { commsAccessChan <- comms }()
+
 	var str string
 	str += "["
 	for i := 1; i <= len(s.Config.Servers); i++ {
-		if comm, ok := s.comms[i]; ok {
+		if comm, ok := comms[i]; ok {
 			str += "S" + strconv.Itoa(i) + ": " + string(comm.Type) + strconv.Itoa(comm.Stamp)
 		} else {
 			str += "S" + strconv.Itoa(i) + ":  -- "
@@ -225,17 +229,18 @@ func (s *Server) commsToString() string {
 		}
 	}
 	str += "]"
+
 	return str
 }
 func (s *Server) verifyCriticalSection() {
-
-	if ownComm, ok := s.comms[s.Number]; !ok || ownComm.Type != types.Request {
+	comms := <-commsAccessChan
+	if ownComm, ok := comms[s.Number]; !ok || ownComm.Type != types.Request {
 		return
 	}
 
 	var ownComm types.Communication
 
-	if comm, ok := s.comms[s.Number]; ok {
+	if comm, ok := comms[s.Number]; ok {
 		ownComm = comm
 	}
 
@@ -244,7 +249,7 @@ func (s *Server) verifyCriticalSection() {
 		if i == s.Number {
 			continue
 		}
-		if comm, ok := s.comms[i]; ok && comm.Type == types.Request {
+		if comm, ok := comms[i]; ok && comm.Type == types.Request {
 			if ownComm.Stamp > comm.Stamp || (ownComm.Stamp == comm.Stamp && s.Number > comm.From) {
 				hasOldestReq = false
 				break
@@ -252,6 +257,7 @@ func (s *Server) verifyCriticalSection() {
 		}
 	}
 	if hasOldestReq {
+		commsAccessChan <- comms
 		accessChan <- true
 		s.log(types.LAMPORT, utils.GREEN+"Server #"+strconv.Itoa(s.Number)+" has access to the critical section"+utils.RESET)
 	}
@@ -259,6 +265,8 @@ func (s *Server) verifyCriticalSection() {
 }
 
 func (s *Server) sendComm(commType types.CommunicationType, to []int, payload *map[int]types.Event) {
+	comms := <-commsAccessChan
+
 	communication := types.Communication{
 		Type:  commType,
 		From:  s.Number,
@@ -271,7 +279,8 @@ func (s *Server) sendComm(commType types.CommunicationType, to []int, payload *m
 		communication.Payload = *payload
 	}
 
-	s.comms[s.Number] = communication
+	comms[s.Number] = communication
+	commsAccessChan <- comms
 	s.log(types.LAMPORT, "STATUS: "+s.commsToString()+" OUT "+string(communication.Type)+strconv.Itoa(communication.Stamp)+" -> "+utils.IntToString(communication.To))
 
 	communicationJson, err := json.Marshal(communication)
@@ -288,11 +297,14 @@ func (s *Server) sendComm(commType types.CommunicationType, to []int, payload *m
 }
 
 func (s *Server) handleRequest(comm types.Communication) {
+	comms := <-commsAccessChan
+
 	s.Stamp = utils.Max(s.Stamp, comm.Stamp) + 1
-	s.comms[comm.From] = comm
+	comms[comm.From] = comm
+	commsAccessChan <- comms
 	s.log(types.LAMPORT, "STATUS: "+s.commsToString()+" IN  "+string(comm.Type)+strconv.Itoa(comm.Stamp)+" -> S"+strconv.Itoa(s.Number))
 
-	if ownComm, ok := s.comms[s.Number]; !ok || ownComm.Type != types.Request {
+	if ownComm, ok := comms[s.Number]; !ok || ownComm.Type != types.Request {
 		s.sendComm(types.Acknowledge, []int{comm.From}, nil)
 	}
 
@@ -300,9 +312,12 @@ func (s *Server) handleRequest(comm types.Communication) {
 }
 
 func (s *Server) handleAcknowledge(comm types.Communication) {
+	comms := <-commsAccessChan
+
 	s.Stamp = utils.Max(s.Stamp, comm.Stamp) + 1
-	if ownComm, ok := s.comms[comm.From]; !ok || ownComm.Type != types.Request {
-		s.comms[comm.From] = comm
+	if ownComm, ok := comms[comm.From]; !ok || ownComm.Type != types.Request {
+		comms[comm.From] = comm
+		commsAccessChan <- comms
 		s.log(types.LAMPORT, "STATUS: "+s.commsToString()+" IN  "+string(comm.Type)+strconv.Itoa(comm.Stamp)+" -> "+utils.IntToString(comm.To))
 	}
 
@@ -310,9 +325,12 @@ func (s *Server) handleAcknowledge(comm types.Communication) {
 }
 
 func (s *Server) handleRelease(comm types.Communication) {
+	comms := <-commsAccessChan
+
 	s.Stamp = utils.Max(s.Stamp, comm.Stamp) + 1
-	s.comms[comm.From] = comm
+	comms[comm.From] = comm
 	events = comm.Payload
+	commsAccessChan <- comms
 	s.log(types.LAMPORT, "STATUS: "+s.commsToString()+" IN  "+string(comm.Type)+strconv.Itoa(comm.Stamp)+" -> "+utils.IntToString(comm.To))
 
 	s.verifyCriticalSection()
@@ -376,7 +394,6 @@ func (s *Server) processCommand(input string) {
 
 	reqChan <- true
 	<-accessChan
-
 	s.debugTrace(true)
 
 	var response string
@@ -398,10 +415,10 @@ func (s *Server) processCommand(input string) {
 	default:
 		response = utils.MESSAGE.Error.InvalidCommand
 	}
-	resChan <- response
-	relChan <- true
 
 	s.debugTrace(false)
+	resChan <- response
+	relChan <- true
 }
 
 // ---------- Fonctions pour chaque commande ----------
