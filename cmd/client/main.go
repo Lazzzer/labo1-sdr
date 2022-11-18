@@ -20,7 +20,7 @@ import (
 var config string
 
 func main() {
-	number := flag.Int("number", -1, "Integer: Number of the server to run or to connect to, Default is -1")
+	number := flag.Int("number", -1, "Integer: Number of the server to connect to, Default is -1")
 	flag.Parse()
 
 	if flag.Arg(0) == "" {

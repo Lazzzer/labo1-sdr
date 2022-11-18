@@ -1,4 +1,4 @@
-# Event Manager - Laboratoire 1 de SDR
+# Event Manager - Laboratoire 1 & 2 de SDR
 
 [![Testing on Windows, macOS and Linux](https://github.com/Lazzzer/labo1-sdr/actions/workflows/tests.yml/badge.svg)](https://github.com/Lazzzer/labo1-sdr/actions/workflows/tests.yml)
 
@@ -10,58 +10,83 @@ Lazar Pavicevic et Jonathan Friedli
 
 ## Contexte
 
-Ce projet est réalisé dans le cadre du cours de Systèmes Distribués et Répartis (SDR) de la HEIG-VD. Il a pour but de mettre en place un système de gestion de manifestation via une application client-serveur TCP-IP. Le créateur de la manifestation pourra créer différents jobs et les bénévoles pourront s'y inscrire.
+Ce projet est réalisé dans le cadre du cours de Systèmes Distribués et Répartis (SDR) de la HEIG-VD.
+
+Le laboratoire n°1 a pour but de mettre en place un système de gestion de manifestation via une application client-serveur TCP-IP. Le créateur de la manifestation pourra créer différents jobs et les bénévoles pourront s'y inscrire.
+
+Le laboratoire n°2 ajoute un réseau de serveurs synchronisant leurs données locales avec un mécanisme d'exclusion mutuelle distribuée avec l'algorithme de Lamport optimisé.
 
 ## Utilisation du programme
 
-L'application contient plusieurs flags qui permettent de choisir le lancement d'un serveur ou d'un client. Ils spécifient aussi si le serveur doit être lancé en mode `debug` et/ou en mode `silent`.
+L'application contient deux exécutables : un pour le serveur et un pour le client.
+
+Le serveur peut être lancé en mode `debug` et/ou en mode `silent`.
 
 Le mode `debug` ralentit artificiellement d'un nombre paramétrable de secondes le serveur lorsqu'il rentre dans des sections critiques et affiche des messages d'entrées/sorties de ces dernières.
 
-Le mode `silent` désactive les logs du serveur. Cependant, les logs du mode debug sont toujours affichés. Ceci est surtout pratique pour observer le comportement du serveur lor des tests d'intégration automatisés.
+Le mode `silent` désactive les logs du serveur. Ceci est surtout pratique pour observer le comportement du serveur lor des tests d'intégration automatisés.
 
-En cas de doute, une commande est disponible pour connaître les usages de l'application:
+### Pour lancer un serveur:
+
+Le serveur a besoin d'un entier en argument qui représente la clé des maps présentes dans son fichier de configuration. Ces maps indiquent le port d'écoute pour les clients et l'adresse de tout les autres serveurs composant le réseau.
+
+Il dispose de deux flags `--debug` et `--silent` qui peuvent être utilisés pour activer les modes `debug` et `silent` respectivement.
 
 ```bash
 # A la racine du projet
-go run . -h
-# Ou
-go run .\main.go --help
 
-# Ou si le projet a été compilé et que l'exécutable se trouve dans le dossier courant
-.\labo1-sdr.exe --help
-```
+# Lancement du serveur n°1
+go run cmd/server/main.go 1
 
-Résultat:
+# Lancement du serveur n°1 en mode race & debug
+go run -race cmd/server/main.go --debug 1
 
-```bash
-Usage of labo1-sdr.exe:
-  -debug
-        Boolean: Run server in debug mode. Default is false
-  -server
-        Boolean: Run program in server mode. Default is client mode
-  -silent
-        Boolean: Run server in silent mode. Default is false
+# Lancement du serveur n°1 en mode silent
+go run cmd/server/main.go --silent 1
 ```
 
 ### Pour lancer un client:
 
+Le client a besoin d'un entier en argument qui l'identifie au près du serveur. Il peut aussi prendre un flag `--number` pour spécifier le numéro du serveur auquel il se connecte. Si ce flag n'est pas spécifié, le client choisit au hasard un serveur présent dans son fichier de configuration.
+
 ```bash
 # A la racine du projet
-go run .\main.go
+
+# Connexion au serveur numéro 1 avec le nom de client "42"
+go run cmd/client/main.go --number 1 42
+
+# Connexion à un serveur aléatoire avec le nom de client "1" (en mode race)
+go run -race cmd/client/main.go 1
 ```
 
-### Pour lancer un serveur:
+### Usages:
 
 ```bash
 # A la racine du projet
-go run .\main.go --server
+go run cmd/server/main.go --help
+go run cmd/client/main.go --help
 
-# En mode race & debug
-go run -race .\main.go --server --debug
+# Ou si le projet a été compilé et que l'exécutable se trouve dans le dossier courant
+.\main.exe --help # Sous Windows
+./main --help # Sous Linux/macOS
+```
 
-# En mode silent
-go run .\main.go --server --silent
+Résultat pour le serveur:
+
+```bash
+Usage of ./main:
+  -debug
+    	Boolean: Run server in debug mode. Default is false
+  -silent
+    	Boolean: Run server in silent mode. Default is false
+```
+
+Résultat pour le client:
+
+```bash
+Usage of ./main:
+  -number int
+    	Integer: Number of the server to connect to, Default is -1 (default -1)
 ```
 
 ## Liste des commandes
@@ -107,17 +132,17 @@ Les tests peuvent être lancés avec les commandes suivantes:
 
 ```bash
 # A la racine du projet
-go test -race .\client -v
+go test -race ./test/. -v
 
 # Si besoins, en vidant le cache
-go clean -testcache && go test -race .\client -v
+go clean -testcache && go test -race ./test/. -v
 ```
 
 Notre fichier de test comporte un `TestClient` capable de recevoir un tableau de tests à effectuer. Il remplace les inputs utilisateurs par de simples strings et affiche à la console les résultats des tests.
 
-La fonction `init()` est lancée avant la batterie de tests et permet de mettre en route deux serveurs de tests sur les ports `8081` et `8082`.
+La fonction `init()` est lancée avant la batterie de tests et permet de mettre en route un serveur de test sur le ports `8091`.
 
-Le premier serveur sert aux tests d'intégrations qui vérifient principalement une implémentation correcte des commandes. Le second serveur est en mode `debug` et sert à vérifier le bon comportement du code lors d'accès concurrents aux sections critiques.
+Le serveur sert aux tests d'intégrations qui vérifient principalement une implémentation correcte des commandes.
 
 Une [Github Action](https://github.com/Lazzzer/labo1-sdr/actions/workflows/tests.yml) lance automatiquement les tests sur trois versions de l'application compilées pour Windows, MacOS et Linux.
 
@@ -125,7 +150,7 @@ Une [Github Action](https://github.com/Lazzzer/labo1-sdr/actions/workflows/tests
 
 ## Procédure de tests manuels sur les accès concurrents
 
-### Mise en place:
+### Mise en place: // TODO
 
 A la racine du projet, se trouve le fichier `config.json` pour spécifier l'adresse, le port et surtout le temps de délai artificiel lors des accès concurrents. Nous pouvons laisser la plupart des valeurs telles quelles. Il faut juste s'assurer d'avoir un nombre suffisamment grand (ex. 10s) pour la propriété `debug_delay`.
 
