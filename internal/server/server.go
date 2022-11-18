@@ -27,16 +27,22 @@ import (
 //go:embed entities.json
 var entities string // variable qui permet de charger le fichier des entités dans les binaries finales de l'application
 var users, events = utils.GetEntities(entities)
-var inputChan = make(chan string, 1)
-var resChan = make(chan string, 1)
-var quitChan = make(chan bool, 1)
-var commChan = make(chan types.Communication, 1)
-var commsAccessChan = make(chan map[int]types.Communication, 1)
-var reqChan = make(chan bool, 1)
-var relChan = make(chan bool, 1)
-var hasSectionChan = make(chan bool, 1)
-var hasAccess = false
-var accessChan = make(chan bool, 1)
+
+// Channels utilisés pour la réception des inputs et actions liées aux clients
+var inputChan = make(chan string, 1) // channel récupérant l'entrée d'un client connecté
+var resChan = make(chan string, 1)   // channel stockant la réponse du serveur à un input d'un client
+var quitChan = make(chan bool, 1)    // channel permettant de terminer une session d'un client
+
+var commsAccessChan = make(chan map[int]types.Communication, 1) // TODO: Refactor ?
+
+// Channels utilisés pour traiter les communications pour l'algorithme de Lamport dans la goroutine principale
+var reqChan = make(chan bool, 1)                 // Envoi d'un REQ aux autres serveurs
+var hasSectionChan = make(chan bool, 1)          // Accès à la section critique de l'algorithme de Lamport
+var relChan = make(chan bool, 1)                 // Envoi d'un REL aux autres serveurs
+var commChan = make(chan types.Communication, 1) // Réception des communications des autres serveurs (REQ, REL, ACK)
+
+var accessChan = make(chan bool, 1) // TODO : Refactor ?
+var hasAccess = false               // Booléen représentant la possession de la section critique de l'algorithme de Lamport
 
 // Server est une struct représentant un serveur TCP.
 type Server struct {
@@ -158,18 +164,16 @@ func (s *Server) initServersConns(listener net.Listener) {
 		for {
 			select {
 			case <-reqChan: // Demande d'accès à la section critique
-				log.Println("ACCESS reqChan")
 				s.Stamp++
 				s.sendComm(types.Request, utils.MapKeysToArray(s.conns), nil)
-			case <-hasSectionChan:
+			case <-hasSectionChan: // Permission de l'accès à la section critique
 				hasAccess = true
 				accessChan <- hasAccess
 			case <-relChan: // Libération de la section critique
-				log.Println("ACCESS relChan")
 				hasAccess = false
 				s.Stamp++
 				s.sendComm(types.Release, utils.MapKeysToArray(s.conns), &events)
-			case comm := <-commChan: // Réception d'une communication
+			case comm := <-commChan: // Traitement d'une communication reçue
 				switch comm.Type {
 				case types.Request:
 					s.handleRequest(comm)
@@ -405,7 +409,6 @@ func (s *Server) processCommand(input string) {
 
 	reqChan <- true
 	<-accessChan
-	log.Println("ACCESS accessChan")
 
 	s.debugTrace(true)
 
@@ -682,7 +685,6 @@ func (s *Server) log(logType types.LogType, message string) {
 			log.Println(utils.ORANGE + "(DEBUG) " + utils.RESET + message)
 		case types.LAMPORT:
 			log.Println(utils.PINK + "(LAMPORT) " + utils.RESET + message)
-
 		}
 	}
 }
