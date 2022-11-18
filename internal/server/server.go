@@ -34,6 +34,8 @@ var commChan = make(chan types.Communication, 1)
 var commsAccessChan = make(chan map[int]types.Communication, 1)
 var reqChan = make(chan bool, 1)
 var relChan = make(chan bool, 1)
+var hasSectionChan = make(chan bool, 1)
+var hasAccess = false
 var accessChan = make(chan bool, 1)
 
 // Server est une struct représentant un serveur TCP.
@@ -156,9 +158,15 @@ func (s *Server) initServersConns(listener net.Listener) {
 		for {
 			select {
 			case <-reqChan: // Demande d'accès à la section critique
+				log.Println("ACCESS reqChan")
 				s.Stamp++
 				s.sendComm(types.Request, utils.MapKeysToArray(s.conns), nil)
+			case <-hasSectionChan:
+				hasAccess = true
+				accessChan <- hasAccess
 			case <-relChan: // Libération de la section critique
+				log.Println("ACCESS relChan")
+				hasAccess = false
 				s.Stamp++
 				s.sendComm(types.Release, utils.MapKeysToArray(s.conns), &events)
 			case comm := <-commChan: // Réception d'une communication
@@ -238,6 +246,10 @@ func (s *Server) commsToString() string {
 	return str
 }
 func (s *Server) verifyCriticalSection() {
+	if hasAccess {
+		return
+	}
+
 	comms := <-commsAccessChan
 
 	if comms[s.Number].Type != types.Request {
@@ -257,7 +269,7 @@ func (s *Server) verifyCriticalSection() {
 	}
 	commsAccessChan <- comms
 	if hasOldestReq {
-		accessChan <- true
+		hasSectionChan <- true
 		s.log(types.LAMPORT, utils.GREEN+"Server #"+strconv.Itoa(s.Number)+" has access to the critical section"+utils.RESET)
 	}
 
@@ -393,6 +405,8 @@ func (s *Server) processCommand(input string) {
 
 	reqChan <- true
 	<-accessChan
+	log.Println("ACCESS accessChan")
+
 	s.debugTrace(true)
 
 	var response string
@@ -415,9 +429,9 @@ func (s *Server) processCommand(input string) {
 		response = utils.MESSAGE.Error.InvalidCommand
 	}
 
-	s.debugTrace(false)
 	resChan <- response
 	relChan <- true
+	s.debugTrace(false)
 }
 
 // ---------- Fonctions pour chaque commande ----------
