@@ -160,6 +160,10 @@ func (s *Server) initServersConns(listener net.Listener) {
 		for {
 			select {
 			case <-reqChan: // Demande d'accès à la section critique
+				if len(s.Config.Servers) == 1 {
+					accessChan <- true
+					continue
+				}
 				s.Stamp++
 				s.sendComm(types.Request, utils.MapKeysToArray(s.conns), nil)
 			case <-accessChan: // Permission de l'accès à la section critique
@@ -263,7 +267,6 @@ func (s *Server) verifyCriticalSection() {
 	if hasOldestReq {
 		accessChan <- true
 	}
-
 }
 
 func (s *Server) sendComm(commType types.CommunicationType, to []int, payload *map[int]types.Event) {
