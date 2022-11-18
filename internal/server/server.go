@@ -33,8 +33,6 @@ var inputChan = make(chan string, 1) // channel récupérant l'entrée d'un clie
 var resChan = make(chan string, 1)   // channel stockant la réponse du serveur à un input d'un client
 var quitChan = make(chan bool, 1)    // channel permettant de terminer une session d'un client
 
-var commsAccessChan = make(chan map[int]types.Communication, 1) // TODO: Refactor ?
-
 // Channels utilisés pour traiter les communications pour l'algorithme de Lamport dans la goroutine principale
 var reqChan = make(chan bool, 1)                 // Envoi d'un REQ aux autres serveurs
 var accessChan = make(chan bool, 1)              // Accès à la section critique de l'algorithme de Lamport
@@ -157,8 +155,6 @@ func (s *Server) initServersConns(listener net.Listener) {
 		}
 	}
 
-	commsAccessChan <- s.comms
-
 	// Lance la goroutine exécutant la boucle principale de l'algorithme de Lamport
 	go func() {
 		for {
@@ -233,13 +229,10 @@ func (s *Server) handleIncomingComms(conn net.Conn) {
 }
 
 func (s *Server) commsToString() string {
-	comms := <-commsAccessChan
-	defer func() { commsAccessChan <- comms }()
-
 	var str string
 	str += "["
 	for i := 1; i <= len(s.Config.Servers); i++ {
-		str += "S" + strconv.Itoa(i) + ": " + string(comms[i].Type) + strconv.Itoa(comms[i].Stamp)
+		str += "S" + strconv.Itoa(i) + ": " + string(s.comms[i].Type) + strconv.Itoa(s.comms[i].Stamp)
 		if i != len(s.Config.Servers) {
 			str += ", "
 		}
@@ -253,10 +246,7 @@ func (s *Server) verifyCriticalSection() {
 		return
 	}
 
-	comms := <-commsAccessChan
-
-	if comms[s.Number].Type != types.Request {
-		commsAccessChan <- comms
+	if s.comms[s.Number].Type != types.Request {
 		return
 	}
 
@@ -265,12 +255,11 @@ func (s *Server) verifyCriticalSection() {
 		if i == s.Number {
 			continue
 		}
-		if comms[s.Number].Stamp > comms[i].Stamp || (comms[s.Number].Stamp == comms[i].Stamp && s.Number > comms[i].From) {
+		if s.comms[s.Number].Stamp > s.comms[i].Stamp || (s.comms[s.Number].Stamp == s.comms[i].Stamp && s.Number > s.comms[i].From) {
 			hasOldestReq = false
 			break
 		}
 	}
-	commsAccessChan <- comms
 	if hasOldestReq {
 		accessChan <- true
 		s.log(types.LAMPORT, utils.GREEN+"Server #"+strconv.Itoa(s.Number)+" has access to the critical section"+utils.RESET)
@@ -279,8 +268,6 @@ func (s *Server) verifyCriticalSection() {
 }
 
 func (s *Server) sendComm(commType types.CommunicationType, to []int, payload *map[int]types.Event) {
-	comms := <-commsAccessChan
-
 	communication := types.Communication{
 		Type:  commType,
 		From:  s.Number,
@@ -293,8 +280,7 @@ func (s *Server) sendComm(commType types.CommunicationType, to []int, payload *m
 		communication.Payload = *payload
 	}
 
-	comms[s.Number] = communication
-	commsAccessChan <- comms
+	s.comms[s.Number] = communication
 	s.log(types.LAMPORT, "STATUS: "+s.commsToString()+" OUT "+string(communication.Type)+strconv.Itoa(communication.Stamp)+" TO "+utils.IntToString(communication.To))
 
 	communicationJson, err := json.Marshal(communication)
@@ -311,14 +297,12 @@ func (s *Server) sendComm(commType types.CommunicationType, to []int, payload *m
 }
 
 func (s *Server) handleRequest(comm types.Communication) {
-	comms := <-commsAccessChan
 
 	s.Stamp = utils.Max(s.Stamp, comm.Stamp) + 1
-	comms[comm.From] = comm
-	commsAccessChan <- comms
+	s.comms[comm.From] = comm
 	s.log(types.LAMPORT, "STATUS: "+s.commsToString()+" IN  "+string(comm.Type)+strconv.Itoa(comm.Stamp)+" FROM S"+strconv.Itoa(comm.From))
 
-	if comms[s.Number].Type != types.Request {
+	if s.comms[s.Number].Type != types.Request {
 		s.sendComm(types.Acknowledge, []int{comm.From}, nil)
 	}
 
@@ -326,12 +310,9 @@ func (s *Server) handleRequest(comm types.Communication) {
 }
 
 func (s *Server) handleAcknowledge(comm types.Communication) {
-	comms := <-commsAccessChan
-
 	s.Stamp = utils.Max(s.Stamp, comm.Stamp) + 1
-	if comms[comm.From].Type != types.Request {
-		comms[comm.From] = comm
-		commsAccessChan <- comms
+	if s.comms[comm.From].Type != types.Request {
+		s.comms[comm.From] = comm
 		s.log(types.LAMPORT, "STATUS: "+s.commsToString()+" IN  "+string(comm.Type)+strconv.Itoa(comm.Stamp)+" FROM S"+strconv.Itoa(comm.From))
 	}
 
@@ -339,12 +320,9 @@ func (s *Server) handleAcknowledge(comm types.Communication) {
 }
 
 func (s *Server) handleRelease(comm types.Communication) {
-	comms := <-commsAccessChan
-
 	s.Stamp = utils.Max(s.Stamp, comm.Stamp) + 1
-	comms[comm.From] = comm
+	s.comms[comm.From] = comm
 	events = comm.Payload
-	commsAccessChan <- comms
 	s.log(types.LAMPORT, "STATUS: "+s.commsToString()+" IN  "+string(comm.Type)+strconv.Itoa(comm.Stamp)+" FROM S"+strconv.Itoa(comm.From))
 
 	s.verifyCriticalSection()
