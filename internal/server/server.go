@@ -25,8 +25,8 @@ import (
 )
 
 //go:embed entities.json
-var entities string // variable qui permet de charger le fichier des entités dans les binaries finales de l'application
-var users, events = utils.GetEntities(entities)
+var entities string                             // variable qui permet de charger le fichier des entités dans les binaries finales de l'application
+var users, events = utils.GetEntities(entities) // charge les utilisateurs et les événements depuis le fichier entities.json
 
 // Channels utilisés pour la réception des inputs et actions liées aux clients
 var inputChan = make(chan string, 1) // channel récupérant l'entrée d'un client connecté
@@ -37,12 +37,11 @@ var commsAccessChan = make(chan map[int]types.Communication, 1) // TODO: Refacto
 
 // Channels utilisés pour traiter les communications pour l'algorithme de Lamport dans la goroutine principale
 var reqChan = make(chan bool, 1)                 // Envoi d'un REQ aux autres serveurs
-var hasSectionChan = make(chan bool, 1)          // Accès à la section critique de l'algorithme de Lamport
+var accessChan = make(chan bool, 1)              // Accès à la section critique de l'algorithme de Lamport
 var relChan = make(chan bool, 1)                 // Envoi d'un REL aux autres serveurs
 var commChan = make(chan types.Communication, 1) // Réception des communications des autres serveurs (REQ, REL, ACK)
 
-var accessChan = make(chan bool, 1) // TODO : Refactor ?
-var hasAccess = false               // Booléen représentant la possession de la section critique de l'algorithme de Lamport
+var hasAccess = false // Booléen représentant la possession de la section critique de l'algorithme de Lamport
 
 // Server est une struct représentant un serveur TCP.
 type Server struct {
@@ -160,15 +159,15 @@ func (s *Server) initServersConns(listener net.Listener) {
 
 	commsAccessChan <- s.comms
 
+	// Lance la goroutine exécutant la boucle principale de l'algorithme de Lamport
 	go func() {
 		for {
 			select {
 			case <-reqChan: // Demande d'accès à la section critique
 				s.Stamp++
 				s.sendComm(types.Request, utils.MapKeysToArray(s.conns), nil)
-			case <-hasSectionChan: // Permission de l'accès à la section critique
+			case <-accessChan: // Permission de l'accès à la section critique
 				hasAccess = true
-				accessChan <- hasAccess
 			case <-relChan: // Libération de la section critique
 				hasAccess = false
 				s.Stamp++
@@ -273,7 +272,7 @@ func (s *Server) verifyCriticalSection() {
 	}
 	commsAccessChan <- comms
 	if hasOldestReq {
-		hasSectionChan <- true
+		accessChan <- true
 		s.log(types.LAMPORT, utils.GREEN+"Server #"+strconv.Itoa(s.Number)+" has access to the critical section"+utils.RESET)
 	}
 
@@ -409,7 +408,6 @@ func (s *Server) processCommand(input string) {
 
 	reqChan <- true
 	<-accessChan
-
 	s.debugTrace(true)
 
 	var response string
@@ -432,9 +430,9 @@ func (s *Server) processCommand(input string) {
 		response = utils.MESSAGE.Error.InvalidCommand
 	}
 
+	s.debugTrace(false)
 	resChan <- response
 	relChan <- true
-	s.debugTrace(false)
 }
 
 // ---------- Fonctions pour chaque commande ----------
@@ -666,10 +664,10 @@ func (s *Server) jobs(args []string) string {
 func (s *Server) debugTrace(start bool) {
 	if s.Config.Debug {
 		if start {
-			s.log(types.DEBUG, utils.RED+"ACCESSING SHARED SECTION"+utils.RESET)
+			s.log(types.DEBUG, utils.RED+"ACCESSING LOCAL CRITICAL SECTION"+utils.RESET)
 			time.Sleep(time.Duration(s.Config.DebugDelay) * time.Second)
 		} else {
-			s.log(types.DEBUG, utils.GREEN+"RELEASING SHARED SECTION"+utils.RESET)
+			s.log(types.DEBUG, utils.GREEN+"RELEASING LOCAL CRITICAL SECTION"+utils.RESET)
 		}
 	}
 }
