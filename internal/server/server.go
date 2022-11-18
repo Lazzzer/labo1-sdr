@@ -262,7 +262,6 @@ func (s *Server) verifyCriticalSection() {
 	}
 	if hasOldestReq {
 		accessChan <- true
-		s.log(types.LAMPORT, utils.GREEN+"Server #"+strconv.Itoa(s.Number)+" has access to the critical section"+utils.RESET)
 	}
 
 }
@@ -384,9 +383,10 @@ func (s *Server) processCommand(input string) {
 		return
 	}
 
+	s.debugTrace(true) // TODO : Est-ce qu'on part du principe que le debug entraîne une attente avant d'envoyer un REQ ?
 	reqChan <- true
 	<-accessChan
-	s.debugTrace(true)
+	s.log(types.LAMPORT, utils.GREEN+"ACCESSING DISTRIBUTED CRITICAL SECTION"+utils.RESET)
 
 	var response string
 
@@ -408,9 +408,10 @@ func (s *Server) processCommand(input string) {
 		response = utils.MESSAGE.Error.InvalidCommand
 	}
 
-	s.debugTrace(false)
+	s.log(types.LAMPORT, utils.RED+"RELEASING DISTRIBUTED CRITICAL SECTION"+utils.RESET)
 	resChan <- response
 	relChan <- true
+	s.debugTrace(false)
 }
 
 // ---------- Fonctions pour chaque commande ----------
