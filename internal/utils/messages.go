@@ -88,7 +88,7 @@ var title = BOLD + YELLOW +
 	" | |___ \\ V /  __/ | | | |_  | |  | | (_| | | | | (_| | (_| |  __/ |   \n" +
 	" |_____| \\_/ \\___|_| |_|\\__| |_|  |_|\\__,_|_| |_|\\__,_|\\__, |\\___|_|   \n" +
 	"                                                       |___/           " + RESET + "\n" +
-	"Labo 1 SDR - Jonathan Friedli & Lazar Pavicevic\n\n" +
+	"Labo 1 & 2 SDR - Jonathan Friedli & Lazar Pavicevic\n\n" +
 	"Welcome! Please enter a command.\n" +
 	"💡" + YELLOW + "Type 'help' for a list of available commands." + RESET + "\n"
 

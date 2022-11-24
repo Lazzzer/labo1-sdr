@@ -2,7 +2,7 @@
 
 [![Testing on Windows, macOS and Linux](https://github.com/Lazzzer/labo1-sdr/actions/workflows/tests.yml/badge.svg)](https://github.com/Lazzzer/labo1-sdr/actions/workflows/tests.yml)
 
-![Client and server running](docs/example.png)
+![Client and server running](docs/labo2/example.png)
 
 ## Auteurs
 
@@ -144,13 +144,15 @@ La fonction `init()` est lancée avant la batterie de tests et permet de mettre 
 
 Le serveur sert aux tests d'intégrations qui vérifient principalement une implémentation correcte des commandes.
 
+![Tests](/docs/labo2/tests.png)
+
 Une [Github Action](https://github.com/Lazzzer/labo1-sdr/actions/workflows/tests.yml) lance automatiquement les tests sur trois versions de l'application compilées pour Windows, MacOS et Linux.
 
-![Tests](/docs/tests.png)
+![Tests with a Github Action](/docs/labo2/tests-action.png)
 
-## Procédure de tests manuels sur les accès concurrents
+## Procédure de tests manuels sur les accès à la section critique locale
 
-### Mise en place: // TODO
+### Mise en place: // TODO : Refactor en ajoutant les modifications du labo 2
 
 A la racine du projet, se trouve le fichier `config.json` pour spécifier l'adresse, le port et surtout le temps de délai artificiel lors des accès concurrents. Nous pouvons laisser la plupart des valeurs telles quelles. Il faut juste s'assurer d'avoir un nombre suffisamment grand (ex. 10s) pour la propriété `debug_delay`.
 
@@ -218,6 +220,10 @@ Résultat si c'est le client 1 qui est le premier à insérer le mot de passe:
 ![Test1](/docs/test2.png)
 
 Ici, le client 2 a réussi à s'inscrire à une manifestation qui n'existait pas au moment de la requête. Sauf que vu que le client 1 a créé la manifestation et a eu accès à la section partagée avant lui, il a pu s'y inscrire, car il a du attendre l'accès à la section critique.
+
+## Procédure de tests manuels sur les accès à la section critique distribuée
+
+// TODO
 
 ## Implémentation et spécificités
 
