@@ -49,6 +49,11 @@ func (c *Client) Run() {
 		fmt.Println(utils.MESSAGE.Title)
 	}
 
+	_, err = conn.Write([]byte(c.Name + "\n"))
+	if err != nil {
+		log.Fatal("❌ " + utils.RED + "Could not send name to the server." + utils.RESET)
+	}
+
 	defer func(conn net.Conn) {
 		err := conn.Close()
 		if err != nil {

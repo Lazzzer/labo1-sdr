@@ -52,11 +52,11 @@ Le client a besoin d'un entier en argument qui l'identifie au près du serveur. 
 ```bash
 # A la racine du projet
 
-# Connexion au serveur numéro 1 avec le nom de client "42"
-go run cmd/client/main.go --number 1 42
+# Connexion au serveur numéro 1 avec le nom de client "client-42"
+go run cmd/client/main.go --number 1 client-42
 
-# Connexion à un serveur aléatoire avec le nom de client "1" (en mode race)
-go run -race cmd/client/main.go 1
+# Connexion à un serveur aléatoire avec le nom de client "client-random" (en mode race)
+go run -race cmd/client/main.go client-random
 ```
 
 ### Usages:

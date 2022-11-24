@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/Lazzzer/labo1-sdr/internal/server"
 	"github.com/Lazzzer/labo1-sdr/internal/utils"
@@ -15,12 +16,13 @@ import (
 
 // TestClient est un client de test
 type TestClient struct {
+	Name   string
 	Config types.Config
 }
 
 var testConfig = types.Config{Address: "localhost:8091", Servers: map[int]string{1: "localhost:8011"}}
 
-var testClient = TestClient{Config: testConfig}
+var testClient = TestClient{Name: "test-client", Config: testConfig}
 var testServer = server.Server{Number: 1, Port: "8011", ClientPort: "8091", Config: types.ServerConfig{Config: testConfig, Silent: true}}
 
 // TestInput définit un test pour un input du client
@@ -45,6 +47,11 @@ func (tc *TestClient) Run(tests []TestInput, t *testing.T) {
 	}
 
 	defer conn.Close()
+
+	if _, err := conn.Write([]byte(tc.Name + "\n")); err != nil {
+		t.Error(utils.RED + "FAIL: " + utils.RESET + "Error: could not send name to server")
+	}
+	time.Sleep(10 * time.Millisecond)
 
 	for _, test := range tests {
 		if _, err := conn.Write([]byte(test.Input)); err != nil {

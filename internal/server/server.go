@@ -87,21 +87,20 @@ func (s *Server) Run() {
 		conn, err := clientListener.Accept()
 		if err != nil {
 			s.log(types.ERROR, err.Error())
-			break // TODO: Better error handling ?
 		} else {
-			s.log(types.INFO, utils.GREEN+conn.RemoteAddr().String()+" connected"+utils.RESET)
+			reader := bufio.NewReader(conn)
+
+			// Récupère le nom du client
+			nameStr, err := reader.ReadString('\n')
+			if err != nil {
+				s.log(types.ERROR, err.Error())
+			}
+
+			name := strings.TrimSuffix(nameStr, "\n")
+			s.log(types.INFO, utils.GREEN+name+" connected"+utils.RESET)
+
+			go s.handleClientConn(conn, name)
 		}
-		go s.handleClientConn(conn)
-	}
-
-	err = srvListener.Close()
-	if err != nil {
-		s.log(types.ERROR, err.Error())
-	}
-
-	err = clientListener.Close()
-	if err != nil {
-		s.log(types.ERROR, err.Error())
 	}
 }
 
@@ -230,6 +229,10 @@ func (s *Server) handleIncomingComms(conn net.Conn) {
 
 		commChan <- comm
 	}
+
+	if err := conn.Close(); err != nil {
+		s.log(types.ERROR, err.Error())
+	}
 }
 
 func (s *Server) commsToString() string {
@@ -333,7 +336,7 @@ func (s *Server) handleRelease(comm types.Communication) {
 // ---------- Fonctions pour la gestion des clients ----------
 
 // handleClientConn gère l'I/O avec un client connecté au serveur
-func (s *Server) handleClientConn(conn net.Conn) {
+func (s *Server) handleClientConn(conn net.Conn, name string) {
 	reader := bufio.NewReader(conn)
 	for {
 		input, err := reader.ReadString('\n')
@@ -342,7 +345,7 @@ func (s *Server) handleClientConn(conn net.Conn) {
 			break
 		}
 
-		s.log(types.INFO, utils.YELLOW+conn.RemoteAddr().String()+" -> "+strings.TrimSuffix(input, "\n")+utils.RESET)
+		s.log(types.INFO, utils.YELLOW+name+" -> "+strings.TrimSuffix(input, "\n")+utils.RESET)
 		inputChan <- input
 
 		select {
@@ -352,7 +355,7 @@ func (s *Server) handleClientConn(conn net.Conn) {
 				s.log(types.ERROR, err.Error())
 			}
 		case <-quitChan:
-			s.log(types.INFO, utils.RED+conn.RemoteAddr().String()+" disconnected"+utils.RESET)
+			s.log(types.INFO, utils.RED+name+" disconnected"+utils.RESET)
 			err := conn.Close()
 			if err != nil {
 				s.log(types.ERROR, err.Error())
