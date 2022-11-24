@@ -10,6 +10,7 @@ import (
 	"flag"
 	"log"
 	"math/rand"
+	"time"
 
 	"github.com/Lazzzer/labo1-sdr/internal/client"
 	"github.com/Lazzzer/labo1-sdr/internal/utils"
@@ -30,6 +31,7 @@ func main() {
 	config := utils.GetConfig[types.Config](config)
 
 	if *number == -1 {
+		rand.Seed(time.Now().UnixNano())
 		randomPos := rand.Intn(len(config.Servers) + 1)
 		config.Address = config.Servers[randomPos]
 	} else if address, ok := config.Servers[*number]; ok {
