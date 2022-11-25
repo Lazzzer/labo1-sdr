@@ -154,12 +154,29 @@ Une [Github Action](https://github.com/Lazzzer/labo1-sdr/actions/workflows/tests
 
 ### Mise en place: // TODO : Refactor en ajoutant les modifications du labo 2
 
-A la racine du projet, se trouve le fichier `config.json` pour spécifier l'adresse, le port et surtout le temps de délai artificiel lors des accès concurrents. Nous pouvons laisser la plupart des valeurs telles quelles. Il faut juste s'assurer d'avoir un nombre suffisamment grand (ex. 10s) pour la propriété `debug_delay`.
+#### Initialisation:
 
-Il nous faut lancer :
+Dans ce scénario, nous n'avons qu'un seul serveur. Voici comment le lancer :
 
-- un serveur en mode `debug` (soit via le flag `--debug`, soit avec la propriété dans le fichier `config.json`).
-- deux clients
+```bash
+cd cmd/server
+
+#Lancement en mode debug
+go run main.go -debug 1
+```
+Ensuite, nous lançons deux client :
+
+Lancement du client 1 :
+```bash
+cd cmd/client
+go run main.go client-1
+```
+
+Lancement du client 2 :
+```bash
+cd cmd/client
+go run main.go client-2
+```
 
 ### Test de deux clients souhaitant s'inscrire à la dernière place d'un même job
 
