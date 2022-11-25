@@ -224,6 +224,151 @@ Ici, le client 2 a réussi à s'inscrire à une manifestation qui n'existait pas
 ## Procédure de tests manuels sur les accès à la section critique distribuée
 
 // TODO
+### Test d'un client faisant une requête et le server fait une demande d'accès à la section critique partagée.
+
+Client 1 connecté au serveur 1
+```bash
+#1
+close 2
+#2
+Enter username: john
+#3
+Enter password: root
+```
+
+Voici le résultat du serveur 1:
+//TODO: mettre screenshot
+
+On voit que le seveur fait une demande d'accès à la section critique partagée et attends d'avoir reçu tous les `Ack` avant d'y entrer. Il y accède et une fois qu'il a terminé, il émet un `Rel`.
+
+Et voici l'affichage du client 1:
+//TODO: mettre screenshot
+
+### Test d'un client faisant une requête sur un serveur et un autre client fait une autre requête sur un autre serveur.
+
+#### Initialisation:
+Lancer le serveur 1 depuis la racine du projet:
+```bash
+cd cmd\server
+go run .\main.go -debug 1
+```
+Lancer le serveur 2 depuis la racine du projet:
+```bash
+cd cmd\server
+go run .\main.go -debug 2
+```
+
+Lancer le serveur 3 depuis la racine du projet:
+```bash
+cd cmd\server
+go run .\main.go -debug 3
+```
+Tous les serveurs sont lancés en mode debug.
+
+Lancer le client 1 sur le serveur 1 depuis la racine du projet:
+```bash
+cd cmd\client
+go run .\main.go -number 1 client-1
+```
+
+Lancer le client 2 sur le serveur 3 depuis la racine du projet:
+```bash
+cd cmd\client
+go run .\main.go -number 3 client-2
+```
+
+client-1
+```bash
+#1
+close 2
+#2
+Enter username: john
+#3
+Enter password: root
+```
+
+Juste après: client-2
+```bash
+#1
+register 2 1
+#2
+Enter username: claude
+#3
+Enter password: root
+```
+
+Voici le résultat du serveur 1:
+//TODO: mettre screenshot
+
+Ici, on voit que le serveur 1 a émis une demande d'accès à la section critique partagée et attend d'avoir reçu tous les `Ack` avant d'y entrer. Il y accède et une fois qu'il a terminé, il émet un `Rel`.
+
+Voici le résultat du serveur 3:
+//TODO: mettre screenshot
+
+Le serveur 3 a reçu un `Req` et a donc émis un `Ack` au serveur 1. Ensuite il a émis un `Req` mais il doit attendre la libération de la section critique partagée par le serveur 1. Lorsqu'il reçoit le `Rel`, il accède à la section critique et émet un `Rel` quand il a fini avec la section critique.
+
+
+Voici l'affichage du client 1:
+//TODO: mettre screenshot
+
+Voici l'affichage du client 2:
+//TODO: mettre screenshot
+
+### Test d'un client faisent une écriture sur un serveur en mode debug et un autre client fait une lecture sur un serveur en mode normal.
+
+#### Initialisation:
+Lancer le serveur 1 depuis la racine du projet:
+```bash
+cd cmd\server
+go run .\main.go -debug 1
+```
+Lancer le serveur 2 depuis la racine du projet:
+```bash
+cd cmd\server
+go run .\main.go -debug 2
+```
+
+Lancer le serveur 3 depuis la racine du projet:
+```bash
+cd cmd\server
+go run .\main.go 3
+```
+Le serveur 1 et 2 sont en debug mais pas le serveur 3.
+
+Lancer le client 1 sur le serveur 1 depuis la racine du projet:
+```bash
+cd cmd\client
+go run .\main.go -number 1 NomDuClientUn
+```
+
+Lancer le client 2 sur le serveur 3 depuis la racine du projet:
+```bash
+cd cmd\client
+go run .\main.go -number 3 NomDuClientTrois
+```
+
+client-1
+```bash
+#1
+close 2
+#2
+Enter username: john
+#3
+Enter password: root
+```
+
+Juste après : client-2 
+```bash
+#1
+show
+```
+
+//TODO: mettre screenshot
+
+Résultat: Même si le client 2 a émis sa requête après le client 1, il a pu accéder à la section critique en premier car le serveur 3 n'est pas en mode debug (le serveur 1 a pris 5 seconde avant de faire sa requête).
+
+Le client 2 peut donc lire que l'event 2 n'est pas fermé. Alors que la demande pour fermer l'event 2 date d'avant la demande du client 2.
+
 
 ## Implémentation et spécificités
 
