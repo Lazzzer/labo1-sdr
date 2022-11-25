@@ -279,9 +279,10 @@ go run .\main.go -debug 3
 
 Lancer client-1 sur le serveur 1 depuis la racine du projet:
 
-````bash
+```bash
 cd cmd\client
 go run .\main.go -number 1 client-1
+```
 
 client-1 connecté au serveur 1 :
 
@@ -292,7 +293,7 @@ close 2
 Enter username: john
 #3
 Enter password: root
-````
+```
 
 Voici le résultat de la manipulation:
 ![Test3](/docs/labo2/test3.png)
