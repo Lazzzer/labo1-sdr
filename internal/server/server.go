@@ -1,9 +1,11 @@
 // Auteurs: Jonathan Friedli, Lazar Pavicevic
-// Labo 1 SDR
+// Labo 2 SDR
 
 // Package server propose un serveur TCP qui effectue une gestion de manifestations.
 //
 // Le serveur est capable de gérer plusieurs clients en même temps.
+// Le serveur est capable de se connecter à d'autres serveurs pour former un réseau et gère les accès à une section critique
+// en utilisant l'algorithme de Lamport optimisé.
 // Au démarrage, le serveur charge une configuration depuis un fichier config.json.
 // Il charge ensuite les utilisateurs et les événements depuis un fichier entities.json.
 package server
@@ -54,7 +56,7 @@ type Server struct {
 
 // Run lance le serveur et attend les connexions des clients.
 //
-// Chaque connexion est ensuite gérée par une goroutine jusqu'à sa fermeture.
+// Chaque connexion est ensuite gérée par plusieurs goroutines jusqu'à sa fermeture.
 func (s *Server) Run() {
 
 	var err error
@@ -83,6 +85,7 @@ func (s *Server) Run() {
 		}
 	}()
 
+	// Boucle acceptant les connexions des clients
 	for {
 		conn, err := clientListener.Accept()
 		if err != nil {
@@ -99,11 +102,16 @@ func (s *Server) Run() {
 			name := strings.TrimSuffix(nameStr, "\n")
 			s.log(types.INFO, utils.GREEN+name+" connected"+utils.RESET)
 
-			go s.handleClientConn(conn, name)
+			go s.handleClientConns(conn, name)
 		}
 	}
 }
 
+// initServersConns initialise les connexions avec les autres serveurs.
+// La méthode s'assure que le serveur ait une connexion (en tant que client ou serveur) avec tous les autres serveurs
+// présents dans sa configuration. Pour cela, s'il n'arrive pas à se connecter à un serveur, il passe en mode "server" et
+// attend que les autres serveurs se connectent à lui.
+// Finalement, il lance une goroutine qui va traiter les communications entre les serveurs.
 func (s *Server) initServersConns(listener net.Listener) {
 	s.conns = make(map[int]net.Conn, len(s.Config.Servers)-1)
 	nbSuccessConn := 0
@@ -210,6 +218,7 @@ func (s *Server) handleHandshake(conn net.Conn) {
 	s.conns[number] = conn
 }
 
+// handleIncomingComms gère les communications entrantes des autres serveurs.
 func (s *Server) handleIncomingComms(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 
@@ -235,19 +244,9 @@ func (s *Server) handleIncomingComms(conn net.Conn) {
 	}
 }
 
-func (s *Server) commsToString() string {
-	var str string
-	str += "["
-	for i := 1; i <= len(s.Config.Servers); i++ {
-		str += "S" + strconv.Itoa(i) + ": " + string(s.comms[i].Type) + strconv.Itoa(s.comms[i].Stamp)
-		if i != len(s.Config.Servers) {
-			str += ", "
-		}
-	}
-	str += "]"
+// ---------- Méthodes concernant les communications serveurs-serveurs & Lamport ----------
 
-	return str
-}
+// verifyCriticalSection vérifie si le serveur peut accéder à la section critique distribuée selon l'algorithme de Lamport.
 func (s *Server) verifyCriticalSection() {
 	if hasAccess {
 		return
@@ -272,6 +271,9 @@ func (s *Server) verifyCriticalSection() {
 	}
 }
 
+// sendComm prépare et envoie une communication à un ou plusieurs serveurs. Cette communication est envoyée en JSON et
+// est stockée dans la map des communications du serveur à son propre index. La méthode peut prendre la map des
+// manifestations (dans le cas d'un REL par exemple) pour communiquer aux autres serveurs la version à jour de l'entité.
 func (s *Server) sendComm(commType types.CommunicationType, to []int, payload *map[int]types.Event) {
 	communication := types.Communication{
 		Type:  commType,
@@ -301,6 +303,9 @@ func (s *Server) sendComm(commType types.CommunicationType, to []int, payload *m
 	}
 }
 
+// handleRequest gère la réception d'une requête (REQ) d'accès à la section critique distribuée. Avec Lamport optimisée,
+// si le serveur actuel contient déjà une requête, il ne fait rien. Sinon, il envoie un ACK au serveur qui a envoyé la REQ.
+// Dans les deux cas, le serveur vérifie si il peut accéder à la section critique.
 func (s *Server) handleRequest(comm types.Communication) {
 
 	s.Stamp = utils.Max(s.Stamp, comm.Stamp) + 1
@@ -314,6 +319,8 @@ func (s *Server) handleRequest(comm types.Communication) {
 	s.verifyCriticalSection()
 }
 
+// handleAcknowledge gère la réception d'un ACK d'accès à la section critique distribuée. Si le serveur actuel contient
+// déjà une requête, il s'occupe seulement de vérifier s'il a accès à la section critique.
 func (s *Server) handleAcknowledge(comm types.Communication) {
 	s.Stamp = utils.Max(s.Stamp, comm.Stamp) + 1
 	if s.comms[comm.From].Type != types.Request {
@@ -324,6 +331,8 @@ func (s *Server) handleAcknowledge(comm types.Communication) {
 	s.verifyCriticalSection()
 }
 
+// handleRelease gère la réception d'un REL d'accès à la section critique distribuée. Si le REL contient un payload,
+// le serveur met à jour sa map des manifestations. Finalement, le serveur vérifie s'il a accès à la section critique.
 func (s *Server) handleRelease(comm types.Communication) {
 	s.Stamp = utils.Max(s.Stamp, comm.Stamp) + 1
 	s.comms[comm.From] = comm
@@ -333,10 +342,10 @@ func (s *Server) handleRelease(comm types.Communication) {
 	s.verifyCriticalSection()
 }
 
-// ---------- Fonctions pour la gestion des clients ----------
+// ---------- Méthodes pour la gestion des clients et leurs commandes ----------
 
-// handleClientConn gère l'I/O avec un client connecté au serveur
-func (s *Server) handleClientConn(conn net.Conn, name string) {
+// handleClientConns gère l'I/O avec un client connecté au serveur
+func (s *Server) handleClientConns(conn net.Conn, name string) {
 	reader := bufio.NewReader(conn)
 	for {
 		input, err := reader.ReadString('\n')
@@ -389,7 +398,7 @@ func (s *Server) processCommand(input string) {
 		return
 	}
 
-	s.debugTrace(true) // TODO : Est-ce qu'on part du principe que le debug entraîne une attente avant d'envoyer un REQ ?
+	s.debugTrace(true)
 	reqChan <- true
 	<-accessChan
 	s.log(types.LAMPORT, utils.GREEN+"ACCESSING DISTRIBUTED CRITICAL SECTION"+utils.RESET)
@@ -420,7 +429,7 @@ func (s *Server) processCommand(input string) {
 	s.debugTrace(false)
 }
 
-// ---------- Fonctions pour chaque commande ----------
+// ---------- Méthode pour chaque commande ----------
 
 // help est la méthode appelée par la commande "help" et affiche un message d'aide listant chaque commande et ses arguments.
 func (s *Server) help(args []string) string {
@@ -640,7 +649,22 @@ func (s *Server) jobs(args []string) string {
 	return utils.MESSAGE.WrapEvent(eventTitle + builder.String())
 }
 
-// ---------- Fonctions helpers ----------
+// ---------- Méthodes helpers ----------
+
+// commsToString affiche la map des communications du serveur en un tableau de string.
+func (s *Server) commsToString() string {
+	var str string
+	str += "["
+	for i := 1; i <= len(s.Config.Servers); i++ {
+		str += "S" + strconv.Itoa(i) + ": " + string(s.comms[i].Type) + strconv.Itoa(s.comms[i].Stamp)
+		if i != len(s.Config.Servers) {
+			str += ", "
+		}
+	}
+	str += "]"
+
+	return str
+}
 
 // debugTrace permet d'afficher des informations de debugTrace si le mode debugTrace est activé.
 //

@@ -1,5 +1,5 @@
 // Auteurs: Jonathan Friedli, Lazar Pavicevic
-// Labo 1 SDR
+// Labo 2 SDR
 
 package test
 

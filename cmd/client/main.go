@@ -1,8 +1,9 @@
 // Auteurs: Jonathan Friedli, Lazar Pavicevic
-// Labo 1 SDR
+// Labo 2 SDR
 
-// Package main est le point d'entrée du programme permettant de démarrer le serveur ou un client.
-// Il gère aussi les flags du serveur pour le lancer en mode "debug" ou em mode "silent".
+// Package main est le point d'entrée du programme permettant de démarrer le client.
+// Il gère aussi un flag number qui permet de choisir le serveur auquel se connecter.
+// Si le flag est omis, le client se connecte à un serveur au hasard présent dans le fichier de configuration.
 package main
 
 import (
@@ -20,6 +21,7 @@ import (
 //go:embed config.json
 var config string
 
+// main est la méthode d'entrée du programme
 func main() {
 	number := flag.Int("number", -1, "Integer: Number of the server to connect to, Default is -1")
 	flag.Parse()

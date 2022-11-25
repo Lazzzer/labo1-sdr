@@ -1,5 +1,5 @@
 // Auteurs: Jonathan Friedli, Lazar Pavicevic
-// Labo 1 SDR
+// Labo 2 SDR
 
 // Package utils contient des fichiers utilitaires pour le projet.
 // Il contient notamment des variables globales de string pour les couleurs, les variables représentant les commandes

@@ -1,9 +1,11 @@
 // Auteurs: Jonathan Friedli, Lazar Pavicevic
-// Labo 1 SDR
+// Labo 2 SDR
 
 // Package client propose un client TCP qui se connecte à un serveur gestionnaire de manifestations.
 //
 // L'URL et le port du serveur sont définis dans le fichier config.json injecté dans l'application au build.
+// Le client peut spécifier le numéro du serveur auquel il souhaite se connecter et s'il ne le fait pas, il se connecte à
+// au hasard à un serveur présent dans la liste.
 // Le client est capable d'envoyer des commandes au serveur et d'afficher ses réponses.
 // Les commandes protégées par des credentials activent un prompt pour y passer ses identifiants.
 // Les commandes qui n'existent pas ou contenant des typos (par exemple: "shutdownServer" ou "helpp") ne sont même pas envoyées au serveur.
@@ -28,7 +30,7 @@ import (
 
 // Client est une struct représentant un client TCP.
 type Client struct {
-	Name   string
+	Name   string       // Nom du client
 	Config types.Config // Configuration du client
 }
 

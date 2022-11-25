@@ -1,14 +1,20 @@
 // Auteurs: Jonathan Friedli, Lazar Pavicevic
-// Labo 1 SDR
+// Labo 2 SDR
 
 // Package types propose différents types utilisés par l'application pour parser les fichiers de configuration et les entités.
 package types
 
+// Config représente la configuration partagée par un serveur et un client.
+// Elle contient la liste des adresses des serveurs ainsi que leur numéro.
+// Pour le client, Address représente l'adresse du serveur auquel il se connecte.
+// Pour le serveur, Address représente l'adresse sur laquelle il écoute.
 type Config struct {
 	Address string         `json:"adress,omitempty"` // Adresse du serveur
 	Servers map[int]string `json:"servers"`          // Adresses des serveurs disponibles
 }
 
+// ServerConfig est une configuration de serveur contenant notamment la valeur des flags et la liste des ports à utiliser
+// et à exposer pour l'écoute des connexions clientes.
 type ServerConfig struct {
 	Config
 	ClientPorts map[int]string `json:"client_ports"`          // Ports des listeners à utiliser pour écouter les connexions des clients
@@ -17,6 +23,7 @@ type ServerConfig struct {
 	DebugDelay  int            `json:"debug_delay,omitempty"` // Délai d'attente pour la simulation de la concurrence
 }
 
+// LogType représente le type de log à afficher utilisé par une "enum" contenant INFO, ERROR, DEBUG et LAMPORT.
 type LogType string
 
 const (
@@ -26,6 +33,7 @@ const (
 	LAMPORT LogType = "LAMPORT"
 )
 
+// CommunicationType représente le type de communication utilisé par une "enum" contenant Request, Acknowledge, Release.
 type CommunicationType string
 
 const (
@@ -34,12 +42,13 @@ const (
 	Release     CommunicationType = "REL"
 )
 
+// Communication représente une communication pour l'algorithme de Lamport optimisé entre deux serveurs.
 type Communication struct {
-	Type    CommunicationType `json:"type"`  // Type de communication
-	From    int               `json:"from"`  // Numéro du serveur émetteur
-	To      []int             `json:"to"`    // Numéro des serveurs récepteurs
-	Stamp   int               `json:"stamp"` // Estampille associée à la communication
-	Payload map[int]Event     `json:"payload,omitempty"`
+	Type    CommunicationType `json:"type"`              // Type de communication
+	From    int               `json:"from"`              // Numéro du serveur émetteur
+	To      []int             `json:"to"`                // Numéro des serveurs récepteurs
+	Stamp   int               `json:"stamp"`             // Estampille associée à la communication
+	Payload map[int]Event     `json:"payload,omitempty"` // Payload éventuel de la communication
 }
 
 // Command est un type représentant une commande valide à envoyer par un client au serveur.

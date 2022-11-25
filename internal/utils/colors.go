@@ -1,5 +1,5 @@
 // Auteurs: Jonathan Friedli, Lazar Pavicevic
-// Labo 1 SDR
+// Labo 2 SDR
 // source: https://twin.sh/articles/35/how-to-add-colors-to-your-console-terminal-output-in-go
 
 package utils
