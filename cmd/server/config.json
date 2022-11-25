@@ -1,0 +1,15 @@
+{
+  "client_ports": {
+    "1": "8081",
+    "2": "8082",
+    "3": "8083"
+  },
+  "servers": {
+    "1": "localhost:8001",
+    "2": "localhost:8002",
+    "3": "localhost:8003"
+  },
+  "debug": false,
+  "silent": false,
+  "debug_delay": 5
+}

@@ -1,9 +1,11 @@
 // Auteurs: Jonathan Friedli, Lazar Pavicevic
-// Labo 1 SDR
+// Labo 2 SDR
 
 // Package client propose un client TCP qui se connecte à un serveur gestionnaire de manifestations.
 //
 // L'URL et le port du serveur sont définis dans le fichier config.json injecté dans l'application au build.
+// Le client peut spécifier le numéro du serveur auquel il souhaite se connecter et s'il ne le fait pas, il se connecte à
+// au hasard à un serveur présent dans la liste.
 // Le client est capable d'envoyer des commandes au serveur et d'afficher ses réponses.
 // Les commandes protégées par des credentials activent un prompt pour y passer ses identifiants.
 // Les commandes qui n'existent pas ou contenant des typos (par exemple: "shutdownServer" ou "helpp") ne sont même pas envoyées au serveur.
@@ -18,17 +20,17 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 
-	"github.com/Lazzzer/labo1-sdr/utils"
-	"github.com/Lazzzer/labo1-sdr/utils/types"
+	"github.com/Lazzzer/labo1-sdr/internal/utils"
+	"github.com/Lazzzer/labo1-sdr/internal/utils/types"
 	"golang.org/x/term"
 )
 
 // Client est une struct représentant un client TCP.
 type Client struct {
+	Name   string       // Nom du client
 	Config types.Config // Configuration du client
 }
 
@@ -41,12 +43,17 @@ func (c *Client) Run() {
 	intChan := make(chan os.Signal, 1) // Catch du CTRL+C
 	signal.Notify(intChan, syscall.SIGINT)
 
-	conn, err := net.Dial("tcp", c.Config.Host+":"+strconv.Itoa(c.Config.Port))
+	conn, err := net.Dial("tcp", c.Config.Address)
 
 	if err != nil {
 		log.Fatal("❌ " + utils.RED + "Could not connect to the server." + utils.RESET)
 	} else {
 		fmt.Println(utils.MESSAGE.Title)
+	}
+
+	_, err = conn.Write([]byte(c.Name + "\n"))
+	if err != nil {
+		log.Fatal("❌ " + utils.RED + "Could not send name to the server." + utils.RESET)
 	}
 
 	defer func(conn net.Conn) {
